@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operación Siembra · TwinPikes</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>body{margin:0;padding:0}*{box-sizing:border-box}</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// Fallback storage: usa window.storage si existe (compartido en Claude), si no localStorage.
+const store = {
+  async get(k){ try{ if(window.storage) return await window.storage.get(k,true); const v=localStorage.getItem(k); return v?{value:v}:null; }catch{ const v=localStorage.getItem(k); return v?{value:v}:null; } },
+  async set(k,v){ try{ if(window.storage) return await window.storage.set(k,v,true); localStorage.setItem(k,v); }catch{ localStorage.setItem(k,v); } }
+};
+
+const NAVY="#002060",GOLD="#C2A34E",GOLD_LIGHT="#E8D9A0",GRAY="#BFBFBF",WHITE="#FFFFFF",LIGHT_BG="#F8F7F4";
+const STAGES={Harvesting:{prob:.10,color:"#64748B",bg:"#F1F5F9"},Assessment:{prob:.30,color:GOLD,bg:"#FBF6EA"},Scrutiny:{prob:.70,color:NAVY,bg:"#EEF2F9"},Execution:{prob:1,color:"#16a34a",bg:"#F0FDF4"}};
+const STAGE_ORDER=["Harvesting","Assessment","Scrutiny","Execution"];
+const CHECKLISTS={
+ Harvesting:["Primera conversación real celebrada","Champion identificado","Decision-maker identificado + camino para llegar","Concepto Sales Ops Outsourcing explicado","Factores de bloqueo identificados y tipificados","Interés explícito — próxima conversación acordada"],
+ Assessment:["Deck presentado formalmente al Champion","Decision-maker conoce la iniciativa","Encaje confirmado — building blocks identificados","Contexto presupuestario entendido","Sin factores de bloqueo activos sin gestionar","Champion ha pedido / dado luz verde a la propuesta"],
+ Scrutiny:["Propuesta formal presentada al Decision-maker","Términos económicos sobre la mesa sin rechazo","Timeline de decisión conocido","Interlocución directa con Decision-maker establecida","SLAs primeros 2 meses negociados y acordados","Contrato o acuerdo de inicio en preparación"],
+ Execution:[]
+};
+const AXES=["Talento","Sector","KAM","Portfolio"];
+const FEE_LA=18750,FEE_SME=7500;
+const INITIAL=[
+ {id:"p1",account:"ILC Dover",type:"LA",stage:"Assessment",champion:"Ciro Ahumada (CEO)",dm:"Scott (CEO Ingersoll Rand div.)",dmEngaged:false,lastContact:"Jun-26 · reunión",nextAction:"Esperando feedback Go/No-Go (2-3 días)",axes:["Sector","KAM"],notes:"Proyecto KAM previo. Start Jul-26.",checklist:{}},
+ {id:"p2",account:"Fluidra SAENZ",type:"LA",stage:"Assessment",champion:"Albert Lluís (Dir. Comercial)",dm:"Carlos Franquesa (GM EMEA)",dmEngaged:true,lastContact:"May-26 · presentación",nextAction:"Preparar propuesta específica. Start 1-Sep-26",axes:["KAM","Portfolio"],notes:"Validación fuerte de Albert Lluís.",checklist:{}},
+ {id:"p3",account:"Renolit",type:"LA",stage:"Assessment",champion:"Miquel López",dm:"Pedro Arrebola (CEO piscinas)",dmEngaged:false,lastContact:"May-26 · comida",nextAction:"Entregar propuesta para Pedro en la reunión",commitDate:"2026-06-16",axes:["Talento","Sector"],notes:"Conflicto Fluidra ya gestionado (no compiten). Start 1-Ene-27.",checklist:{}},
+ {id:"p4",account:"Girbau",type:"LA",stage:"Assessment",champion:"Martí Giralt (CEO)",dm:"Martí Giralt (CEO)",dmEngaged:true,lastContact:"May-26 · llamada",nextAction:"Comida: profundizar nombres red + cerrar siguiente paso",commitDate:"2026-06-19",axes:["Talento"],notes:"Champion = Decision-maker. Evangelista en su red. Start 1-Ene-27.",checklist:{}},
+ {id:"p5",account:"Iberspa",type:"SME",stage:"Assessment",champion:"Artur Deu (CEO)",dm:"Artur Deu (CEO)",dmEngaged:true,lastContact:"01/06 · sparring",nextAction:"Adaptar deck a versión PyME. Q2-27",axes:["Talento"],notes:"Feedback: outcomes-first, pricing upfront.",checklist:{}},
+ {id:"p6",account:"Fluidra CEEM",type:"LA",stage:"Harvesting",champion:"David Méndez (GM)",dm:"TBD",dmEngaged:false,lastContact:"May-26 · presentación",nextAction:"Esperar señal. No forzar.",axes:["KAM"],notes:"Lo ve interesante. Mantener relación.",checklist:{}},
+ {id:"p7",account:"Circutor",type:"LA",stage:"Harvesting",champion:"Marc Pérez (CEO)",dm:"Marc Pérez / Propiedad",dmEngaged:false,lastContact:"May-26 · conversación",nextAction:"Pivotar a propuesta operativa concreta.",axes:["Talento","Sector"],notes:"Propiedad rechaza consultoría estratégica; abierto a operativo.",checklist:{}},
+ {id:"p8",account:"Simón",type:"LA",stage:"Harvesting",champion:"Esteban Bretcha (CEO)",dm:"Esteban Bretcha (CEO)",dmEngaged:false,lastContact:"May-26",nextAction:"Enviar insight puente jun. Reunión julio.",axes:["Sector","Portfolio"],notes:"Reunión acordada para julio.",checklist:{}},
+ {id:"p9",account:"Loomis",type:"LA",stage:"Harvesting",champion:"Alejandro Corominas (CEO)",dm:"Alejandro Corominas (CEO)",dmEngaged:false,lastContact:"May-26 · comida",nextAction:"Reunión 2 sem. Plantear SalesOps + Francia (Kéa).",axes:["Portfolio"],notes:"Amigo personal. Interés filial Francia.",checklist:{}},
+ {id:"p10",account:"Frulact",type:"LA",stage:"Harvesting",champion:"Dinorah Mandic (CEO)",dm:"Dinorah Mandic (CEO)",dmEngaged:false,lastContact:"Activo / continuo",nextAction:"Plantear concepto SalesOps. Pedir referencias.",axes:["Sector","KAM"],notes:"5 proyectos hechos. Relación densa.",checklist:{}},
+ {id:"p11",account:"Reig Jofre",type:"LA",stage:"Harvesting",champion:"TBD",dm:"TBD",dmEngaged:false,lastContact:"—",nextAction:"Intro vía Ignacio Franquesa. Caso ILC/Qualicaps.",axes:["Sector"],notes:"Pharma B2B Barcelona. Vía Ignacio Franquesa (ext.).",checklist:{}},
+ {id:"p12",account:"Emergia",type:"LA",stage:"Harvesting",champion:"Albert Ollé (propietario)",dm:"Julio Jolin (DG)",dmEngaged:false,lastContact:"May-26 · comida",nextAction:"Hablar con Albert + Julio. Feedback concepto. Interés KAM.",axes:["KAM","Sector"],notes:"BPO call center. Base limitada pero KAM exigente (como ILC).",checklist:{}}
+];
+
+function App(){
+ const [items,setItems]=useState(INITIAL);
+ const [expanded,setExpanded]=useState(null);
+ const [editing,setEditing]=useState(null);
+ const [adding,setAdding]=useState(false);
+ const [saved,setSaved]=useState(false);
+ const [dormantTarget,setDormantTarget]=useState(null);
+ useEffect(()=>{(async()=>{try{const r=await store.get("siembra_v2");if(r)setItems(JSON.parse(r.value));}catch{}})();},[]);
+ async function persist(next){setItems(next);try{await store.set("siembra_v2",JSON.stringify(next));setSaved(true);setTimeout(()=>setSaved(false),1500);}catch{}}
+ const active=items.filter(i=>!i.dormant);
+ const dormant=items.filter(i=>i.dormant);
+ const liveCount=active.filter(i=>i.stage!=="Execution").length;
+ const fee=i=>i.type==="LA"?FEE_LA:FEE_SME;
+ const ev=i=>fee(i)*12*STAGES[i.stage].prob;
+ const totalW=active.reduce((s,i)=>s+ev(i),0);
+ const totalF=active.reduce((s,i)=>s+fee(i)*12,0);
+ const fmt=n=>"€"+Math.round(n/1000)+"k";
+ const fmtDate=ds=>{if(!ds)return"";const[y,m,d]=ds.split("-");return d+"/"+m;};
+ function dateStatus(ds){
+  if(!ds)return null;
+  const t=new Date();t.setHours(0,0,0,0);
+  const d=new Date(ds+"T00:00:00");
+  const diff=Math.round((d-t)/86400000);
+  if(diff<0)return{key:"overdue",label:"Vencida ("+fmtDate(ds)+")",color:"#DC2626",bg:"#FEF2F2"};
+  if(diff===0)return{key:"soon",label:"Hoy",color:"#D97706",bg:"#FFFBEB"};
+  if(diff<=7)return{key:"soon",label:"Vence en "+diff+"d ("+fmtDate(ds)+")",color:"#D97706",bg:"#FFFBEB"};
+  return{key:"ok",label:fmtDate(ds),color:"#16a34a",bg:"#F0FDF4"};
+ }
+ const overdueCount=active.filter(i=>i.stage!=="Execution"&&dateStatus(i.commitDate)&&dateStatus(i.commitDate).key==="overdue").length;
+ const reactivateCount=dormant.filter(i=>{if(!i.reactivateDate)return false;const t=new Date();t.setHours(0,0,0,0);return new Date(i.reactivateDate+"T00:00:00")<=t;}).length;
+ function toggleCheck(item,idx){const cl={...(item.checklist||{})};const k=item.stage+"_"+idx;cl[k]=!cl[k];persist(items.map(i=>i.id===item.id?{...i,checklist:cl}:i));}
+ function prog(item){const l=CHECKLISTS[item.stage]||[];if(!l.length)return{done:0,total:0};const done=l.filter((_,idx)=>item.checklist&&item.checklist[item.stage+"_"+idx]).length;return{done,total:l.length};}
+ function move(item,dir){const idx=STAGE_ORDER.indexOf(item.stage);const ni=Math.max(0,Math.min(3,idx+dir));persist(items.map(i=>i.id===item.id?{...i,stage:STAGE_ORDER[ni]}:i));}
+ function saveEdit(d){if(d.id)persist(items.map(i=>i.id===d.id?d:i));else persist([...items,{...d,id:"p"+Date.now(),checklist:{}}]);setEditing(null);setAdding(false);}
+ function remove(id){persist(items.filter(i=>i.id!==id));setEditing(null);}
+ function sendToBarbecho(item,reason,date){persist(items.map(i=>i.id===item.id?{...i,dormant:true,dormantReason:reason,reactivateDate:date}:i));setDormantTarget(null);}
+ function reactivate(item){persist(items.map(i=>i.id===item.id?{...i,dormant:false,dormantReason:"",reactivateDate:""}:i));}
+ function exportData(){
+  const blob=new Blob([JSON.stringify(items,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  const d=new Date(),pad=n=>String(n).padStart(2,"0");
+  a.href=url;a.download="OperacionSiembra_"+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+".json";
+  a.click();URL.revokeObjectURL(url);
+ }
+ function importData(e){
+  const file=e.target.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=ev=>{try{const data=JSON.parse(ev.target.result);if(Array.isArray(data)){persist(data);alert("Pipeline importado: "+data.length+" oportunidades.");}else alert("El archivo no tiene el formato esperado.");}catch{alert("No se pudo leer el archivo.");}};
+  r.readAsText(file);e.target.value="";
+ }
+
+ return (
+ <div style={{fontFamily:"Georgia, serif",background:LIGHT_BG,minHeight:"100vh",paddingBottom:40}}>
+  <div style={{background:NAVY,padding:"26px 32px 22px",borderBottom:"4px solid "+GOLD}}>
+   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:16,maxWidth:1180,margin:"0 auto"}}>
+    <div>
+     <div style={{color:GOLD,fontSize:11,letterSpacing:"0.18em",textTransform:"uppercase",fontFamily:"Calibri,sans-serif",marginBottom:6}}>TwinPikes Partners · Sales Ops Outsourcing</div>
+     <div style={{color:WHITE,fontSize:28,fontWeight:"bold"}}>Operación Siembra</div>
+     <div style={{color:GRAY,fontSize:12,fontFamily:"Calibri,sans-serif",marginTop:4}}>Sistema comercial activo · empujamos el pipeline, no esperamos</div>
+    </div>
+    <div style={{display:"flex",gap:14,alignItems:"center"}}>
+     {saved&&<span style={{color:GOLD_LIGHT,fontFamily:"Calibri,sans-serif",fontSize:12}}>✓ Guardado</span>}
+     <div style={{textAlign:"center",background:"rgba(255,255,255,0.06)",borderRadius:10,padding:"10px 18px"}}>
+      <div style={{color:WHITE,fontSize:24,fontWeight:"bold"}}>{fmt(totalF)}</div>
+      <div style={{color:GRAY,fontSize:9.5,fontFamily:"Calibri,sans-serif",letterSpacing:"0.1em"}}>PIPELINE TOTAL</div>
+     </div>
+     <div style={{textAlign:"center",background:"rgba(255,255,255,0.06)",borderRadius:10,padding:"10px 18px"}}>
+      <div style={{color:GOLD_LIGHT,fontSize:24,fontWeight:"bold"}}>{fmt(totalW)}</div>
+      <div style={{color:GRAY,fontSize:9.5,fontFamily:"Calibri,sans-serif",letterSpacing:"0.1em"}}>PIPELINE PONDERADO</div>
+     </div>
+     <div style={{textAlign:"center",background:liveCount>=10?"rgba(197,163,78,0.18)":"rgba(220,38,38,0.2)",border:"1px solid "+(liveCount>=10?GOLD:"#ef4444"),borderRadius:10,padding:"10px 18px"}}>
+      <div style={{color:liveCount>=10?GOLD_LIGHT:"#fca5a5",fontSize:24,fontWeight:"bold"}}>{liveCount}</div>
+      <div style={{color:GRAY,fontSize:9.5,fontFamily:"Calibri,sans-serif",letterSpacing:"0.1em"}}>VIVAS {liveCount>=10?"✓":"· MÍN. 10"}</div>
+     </div>
+     <div style={{textAlign:"center",background:overdueCount>0?"rgba(220,38,38,0.2)":"rgba(255,255,255,0.06)",border:"1px solid "+(overdueCount>0?"#ef4444":"rgba(255,255,255,0.15)"),borderRadius:10,padding:"10px 18px"}}>
+      <div style={{color:overdueCount>0?"#fca5a5":GOLD_LIGHT,fontSize:24,fontWeight:"bold"}}>{overdueCount}</div>
+      <div style={{color:GRAY,fontSize:9.5,fontFamily:"Calibri,sans-serif",letterSpacing:"0.1em"}}>ACCIONES VENCIDAS</div>
+     </div>
+     {(dormant.length>0)&&<div style={{textAlign:"center",background:reactivateCount>0?"rgba(217,119,6,0.22)":"rgba(255,255,255,0.06)",border:"1px solid "+(reactivateCount>0?"#f59e0b":"rgba(255,255,255,0.15)"),borderRadius:10,padding:"10px 18px"}}>
+      <div style={{color:reactivateCount>0?"#fcd34d":GOLD_LIGHT,fontSize:24,fontWeight:"bold"}}>{reactivateCount}</div>
+      <div style={{color:GRAY,fontSize:9.5,fontFamily:"Calibri,sans-serif",letterSpacing:"0.1em"}}>POR REACTIVAR</div>
+     </div>}
+    </div>
+   </div>
+  </div>
+
+  <div style={{maxWidth:1180,margin:"0 auto",padding:"0 20px"}}>
+   <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginTop:24,marginBottom:8}}>
+    {STAGE_ORDER.map(s=>{const st=STAGES[s];const inStage=active.filter(i=>i.stage===s);const cnt=inStage.length;const la=inStage.filter(i=>i.type==="LA").length;const sme=inStage.filter(i=>i.type==="SME").length;const val=inStage.reduce((a,i)=>a+ev(i),0);return(
+     <div key={s} style={{background:WHITE,borderRadius:10,border:"1px solid #E2E8F0",padding:"12px 14px",borderTop:"3px solid "+st.color}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
+       <span style={{color:st.color,fontSize:12,fontFamily:"Calibri,sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em"}}>{s}</span>
+       <span style={{color:GRAY,fontSize:10,fontFamily:"Calibri,sans-serif"}}>{Math.round(st.prob*100)}%</span>
+      </div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginTop:6}}>
+       <span style={{color:NAVY,fontSize:22,fontWeight:"bold"}}>{cnt}</span>
+       <span style={{color:"#64748B",fontSize:12,fontFamily:"Calibri,sans-serif"}}>{fmt(val)}</span>
+      </div>
+      <div style={{fontSize:9.5,color:"#94a3b8",fontFamily:"Calibri,sans-serif",marginTop:3}}>{la} LA · {sme} PYME</div>
+     </div>);})}
+   </div>
+   <div style={{textAlign:"right",fontSize:11,color:"#94a3b8",fontFamily:"Calibri,sans-serif",marginBottom:18}}>
+    Pipeline a valor pleno: {fmt(totalF)} · ponderado por probabilidad: <strong style={{color:NAVY}}>{fmt(totalW)}</strong>
+   </div>
+
+   <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:14,alignItems:"center"}}>
+    <button onClick={exportData} style={{background:WHITE,color:NAVY,border:"1px solid "+NAVY,borderRadius:8,padding:"8px 14px",fontSize:11.5,fontFamily:"Calibri,sans-serif",fontWeight:700,cursor:"pointer"}}>↓ Exportar backup</button>
+    <label style={{background:WHITE,color:NAVY,border:"1px solid "+NAVY,borderRadius:8,padding:"8px 14px",fontSize:11.5,fontFamily:"Calibri,sans-serif",fontWeight:700,cursor:"pointer"}}>↑ Importar<input type="file" accept="application/json,.json" onChange={importData} style={{display:"none"}}/></label>
+    <button onClick={()=>setAdding(true)} style={{background:GOLD,color:NAVY,border:"none",borderRadius:8,padding:"9px 18px",fontSize:12,fontFamily:"Calibri,sans-serif",fontWeight:700,cursor:"pointer",letterSpacing:"0.04em"}}>+ Nueva oportunidad</button>
+   </div>
+
+   {STAGE_ORDER.map(stage=>{const list=active.filter(i=>i.stage===stage);if(!list.length)return null;const st=STAGES[stage];return(
+    <div key={stage} style={{marginBottom:28}}>
+     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+      <div style={{width:4,height:20,background:st.color,borderRadius:2}}></div>
+      <h2 style={{margin:0,fontSize:16,color:NAVY}}>{stage}</h2>
+      <span style={{background:st.bg,color:st.color,borderRadius:20,padding:"2px 10px",fontSize:11,fontFamily:"Calibri,sans-serif",fontWeight:700}}>{list.length} · {Math.round(st.prob*100)}%</span>
+     </div>
+     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(340px,1fr))",gap:12}}>
+      {list.map(item=>{const p=prog(item);const isOpen=expanded===item.id;return(
+       <div key={item.id} style={{background:WHITE,borderRadius:10,border:"1px solid #E2E8F0",overflow:"hidden",boxShadow:"0 1px 4px rgba(0,32,96,0.06)"}}>
+        <div style={{background:st.bg,borderBottom:"2px solid "+st.color,padding:"9px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+         <span style={{background:item.type==="LA"?NAVY:GOLD,color:WHITE,borderRadius:4,padding:"1px 7px",fontSize:9.5,fontFamily:"Calibri,sans-serif",fontWeight:700}}>{item.type}</span>
+         <span style={{color:st.color,fontSize:12,fontFamily:"Calibri,sans-serif",fontWeight:700}}>{fmt(ev(item))} <span style={{fontWeight:400,color:"#94a3b8",fontSize:10}}>esp.</span></span>
+        </div>
+        <div style={{padding:"12px 14px"}}>
+         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div style={{fontSize:16,fontWeight:"bold",color:NAVY}}>{item.account}</div>
+          <button onClick={()=>setEditing(item)} style={{background:"none",border:"none",color:GRAY,cursor:"pointer",fontSize:14}}>✎</button>
+         </div>
+         <div style={{display:"flex",gap:4,flexWrap:"wrap",margin:"6px 0 10px"}}>
+          {(item.axes||[]).map(a=><span key={a} style={{background:"#F1F5F9",color:"#64748B",borderRadius:4,padding:"1px 7px",fontSize:9.5,fontFamily:"Calibri,sans-serif"}}>{a}</span>)}
+         </div>
+         <div style={{fontSize:11.5,fontFamily:"Calibri,sans-serif",lineHeight:1.6}}>
+          <div><span style={{color:GOLD,fontWeight:700}}>Champion:</span> <span style={{color:"#475569"}}>{item.champion||"—"}</span></div>
+          <div><span style={{color:NAVY,fontWeight:700}}>Decision-maker:</span> <span style={{color:"#475569"}}>{item.dm||"—"}</span> {item.dmEngaged?<span style={{color:"#16a34a",fontSize:10}}>● activado</span>:<span style={{color:"#f59e0b",fontSize:10}}>○ no activado</span>}</div>
+         </div>
+         <div style={{fontSize:11,color:"#475569",fontFamily:"Calibri,sans-serif",background:"#F8F7F4",borderRadius:6,padding:"7px 9px",margin:"10px 0"}}>
+          <span style={{color:GOLD,fontWeight:700}}>→ </span>{item.nextAction||"—"}
+          {(()=>{const ds=dateStatus(item.commitDate);return ds?(<div style={{display:"inline-block",marginTop:5,background:ds.bg,color:ds.color,borderRadius:4,padding:"1px 7px",fontSize:10,fontWeight:700}}>{ds.label}</div>):null;})()}
+          {item.lastContact&&<div style={{color:"#94a3b8",fontSize:10,marginTop:4}}>Últ. contacto: {item.lastContact}</div>}
+         </div>
+         {p.total>0&&(
+          <div onClick={()=>setExpanded(isOpen?null:item.id)} style={{cursor:"pointer",display:"flex",alignItems:"center",gap:8,marginBottom:isOpen?8:0}}>
+           <div style={{flex:1,height:6,background:"#E2E8F0",borderRadius:3,overflow:"hidden"}}><div style={{width:(p.done/p.total*100)+"%",height:"100%",background:st.color}}></div></div>
+           <span style={{fontSize:10.5,color:"#64748B",fontFamily:"Calibri,sans-serif",fontWeight:700}}>{p.done}/{p.total} {isOpen?"▲":"▼"}</span>
+          </div>
+         )}
+         {isOpen&&p.total>0&&(
+          <div style={{marginTop:4}}>
+           <div style={{fontSize:9.5,color:GRAY,fontFamily:"Calibri,sans-serif",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6}}>Para pasar a {STAGE_ORDER[STAGE_ORDER.indexOf(stage)+1]||"cierre"}:</div>
+           {CHECKLISTS[stage].map((c,idx)=>{const checked=item.checklist&&item.checklist[stage+"_"+idx];return(
+            <div key={idx} onClick={()=>toggleCheck(item,idx)} style={{display:"flex",alignItems:"flex-start",gap:7,padding:"4px 0",cursor:"pointer"}}>
+             <div style={{width:15,height:15,borderRadius:4,border:"1.5px solid "+(checked?st.color:"#CBD5E1"),background:checked?st.color:WHITE,flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center"}}>{checked&&<span style={{color:WHITE,fontSize:10}}>✓</span>}</div>
+             <span style={{fontSize:11,fontFamily:"Calibri,sans-serif",color:checked?"#94a3b8":"#475569",textDecoration:checked?"line-through":"none",lineHeight:1.4}}>{c}</span>
+            </div>);})}
+          </div>
+         )}
+         <div style={{display:"flex",gap:6,marginTop:12}}>
+          {STAGE_ORDER.indexOf(stage)>0&&<button onClick={()=>move(item,-1)} style={{background:"#f1f5f9",color:"#64748B",border:"none",borderRadius:6,padding:"5px 10px",fontSize:10.5,fontFamily:"Calibri,sans-serif",cursor:"pointer"}}>← Atrás</button>}
+          {STAGE_ORDER.indexOf(stage)<3&&(()=>{const ready=p.total>0&&p.done===p.total;return(
+           <button onClick={()=>ready?move(item,1):setExpanded(item.id)} title={ready?"":"Completa el checklist para avanzar"} style={{flex:1,background:ready?NAVY:"#E2E8F0",color:ready?WHITE:"#94a3b8",border:"none",borderRadius:6,padding:"5px 10px",fontSize:10.5,fontFamily:"Calibri,sans-serif",cursor:"pointer",fontWeight:700}}>{ready?("Avanzar a "+STAGE_ORDER[STAGE_ORDER.indexOf(stage)+1]+" →"):("🔒 Faltan "+(p.total-p.done)+" para avanzar")}</button>);})()}
+         </div>
+         {stage!=="Execution"&&<div style={{textAlign:"center",marginTop:7}}><button onClick={()=>setDormantTarget(item)} style={{background:"none",border:"none",color:"#94a3b8",fontSize:10,fontFamily:"Calibri,sans-serif",cursor:"pointer",textDecoration:"underline"}}>💤 Pasar a barbecho</button></div>}
+        </div>
+       </div>);})}
+     </div>
+    </div>);})}
+
+   {dormant.length>0&&(
+    <div style={{marginBottom:28,marginTop:8}}>
+     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+      <div style={{width:4,height:20,background:"#94a3b8",borderRadius:2}}></div>
+      <h2 style={{margin:0,fontSize:16,color:"#64748B"}}>💤 Barbecho</h2>
+      <span style={{background:"#F1F5F9",color:"#64748B",borderRadius:20,padding:"2px 10px",fontSize:11,fontFamily:"Calibri,sans-serif",fontWeight:700}}>{dormant.length}</span>
+      <span style={{fontSize:11,color:"#94a3b8",fontFamily:"Calibri,sans-serif"}}>fuera del pipeline activo · no cuentan ni suman valor</span>
+     </div>
+     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(340px,1fr))",gap:12}}>
+      {dormant.map(item=>{const rs=dateStatus(item.reactivateDate);const due=rs&&(rs.key==="overdue"||rs.key==="soon");return(
+       <div key={item.id} style={{background:"#FAFAF8",borderRadius:10,border:"1px dashed "+(due?"#f59e0b":"#CBD5E1"),padding:"12px 14px",opacity:.95}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+         <div style={{fontSize:15,fontWeight:"bold",color:"#64748B"}}>{item.account} <span style={{background:item.type==="LA"?"#cbd5e1":GOLD_LIGHT,color:"#475569",borderRadius:4,padding:"1px 6px",fontSize:9,fontFamily:"Calibri,sans-serif",fontWeight:700,verticalAlign:"middle"}}>{item.type}</span></div>
+         <button onClick={()=>setEditing(item)} style={{background:"none",border:"none",color:GRAY,cursor:"pointer",fontSize:13}}>✎</button>
+        </div>
+        {item.dormantReason&&<div style={{fontSize:11,color:"#64748B",fontFamily:"Calibri,sans-serif",marginTop:6}}><span style={{color:"#94a3b8"}}>Motivo:</span> {item.dormantReason}</div>}
+        <div style={{marginTop:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+         {item.reactivateDate?<span style={{background:rs.bg,color:rs.color,borderRadius:4,padding:"2px 8px",fontSize:10,fontFamily:"Calibri,sans-serif",fontWeight:700}}>{rs.key==="overdue"?"Reactivar ya":"Reactivar: "+rs.label}</span>:<span style={{fontSize:10,color:"#94a3b8",fontFamily:"Calibri,sans-serif"}}>Sin fecha de reactivación</span>}
+         <button onClick={()=>reactivate(item)} style={{background:NAVY,color:WHITE,border:"none",borderRadius:6,padding:"5px 12px",fontSize:10.5,fontFamily:"Calibri,sans-serif",cursor:"pointer",fontWeight:700}}>↑ Reactivar</button>
+        </div>
+       </div>);})}
+     </div>
+    </div>
+   )}
+
+   <div style={{marginTop:30,padding:"16px 0",borderTop:"1px solid #E2E8F0",display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+    <span style={{fontSize:10,color:GRAY,fontFamily:"Calibri,sans-serif"}}>TwinPikes Partners · Operación Siembra · Confidential</span>
+    <span style={{fontSize:10,color:GRAY,fontFamily:"Calibri,sans-serif"}}>Principio: siempre ≥ 10 oportunidades vivas. Valor esperado = fee × 12 × prob. de fase.</span>
+   </div>
+  </div>
+  {(editing||adding)&&<EditModal item={editing} onSave={saveEdit} onClose={()=>{setEditing(null);setAdding(false);}} onRemove={remove}/>}
+  {dormantTarget&&<BarbechoModal item={dormantTarget} onConfirm={sendToBarbecho} onClose={()=>setDormantTarget(null)}/>}
+ </div>);
+}
+
+function EditModal({item,onSave,onClose,onRemove}){
+ const [d,setD]=useState(item||{account:"",type:"LA",stage:"Harvesting",champion:"",dm:"",dmEngaged:false,lastContact:"",nextAction:"",commitDate:"",axes:[],notes:""});
+ const set=(k,v)=>setD({...d,[k]:v});
+ const toggleAxis=a=>set("axes",(d.axes||[]).includes(a)?d.axes.filter(x=>x!==a):[...(d.axes||[]),a]);
+ const inp={width:"100%",border:"1px solid #E2E8F0",borderRadius:6,padding:"7px 10px",fontSize:12,fontFamily:"Calibri,sans-serif",boxSizing:"border-box",outline:"none"};
+ const lbl={fontSize:10,color:GRAY,fontFamily:"Calibri,sans-serif",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.05em"};
+ return(
+ <div style={{position:"fixed",inset:0,background:"rgba(0,32,96,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100,padding:20}}>
+  <div style={{background:WHITE,borderRadius:14,padding:26,width:520,maxHeight:"88vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,32,96,0.3)"}}>
+   <div style={{fontSize:17,fontWeight:"bold",color:NAVY,marginBottom:18,fontFamily:"Georgia,serif"}}>{item?"Editar oportunidad":"Nueva oportunidad"}</div>
+   <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:10,marginBottom:12}}>
+    <div><div style={lbl}>Empresa *</div><input value={d.account} onChange={e=>set("account",e.target.value)} style={inp}/></div>
+    <div><div style={lbl}>Tipo</div><select value={d.type} onChange={e=>set("type",e.target.value)} style={inp}><option value="LA">LA</option><option value="SME">SME</option></select></div>
+    <div><div style={lbl}>Fase</div><select value={d.stage} onChange={e=>set("stage",e.target.value)} style={inp}>{STAGE_ORDER.map(s=><option key={s} value={s}>{s}</option>)}</select></div>
+   </div>
+   <div style={{marginBottom:12}}>
+    <div style={lbl}>Ejes de cualificación</div>
+    <div style={{display:"flex",gap:6}}>
+     {AXES.map(a=>{const on=(d.axes||[]).includes(a);return<button key={a} onClick={()=>toggleAxis(a)} style={{flex:1,padding:"6px 4px",borderRadius:6,border:"1.5px solid "+(on?GOLD:"#E2E8F0"),background:on?"#FBF6EA":WHITE,color:on?NAVY:"#94a3b8",fontSize:11,fontFamily:"Calibri,sans-serif",fontWeight:on?700:400,cursor:"pointer"}}>{a}</button>;})}
+    </div>
+   </div>
+   <div style={{marginBottom:12}}><div style={lbl}>Champion</div><input value={d.champion} onChange={e=>set("champion",e.target.value)} style={inp} placeholder="Nombre (rol)"/></div>
+   <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:10,marginBottom:12,alignItems:"end"}}>
+    <div><div style={lbl}>Decision-maker</div><input value={d.dm} onChange={e=>set("dm",e.target.value)} style={inp} placeholder="Nombre (rol)"/></div>
+    <button onClick={()=>set("dmEngaged",!d.dmEngaged)} style={{padding:"7px 12px",borderRadius:6,border:"1.5px solid "+(d.dmEngaged?"#16a34a":"#E2E8F0"),background:d.dmEngaged?"#F0FDF4":WHITE,color:d.dmEngaged?"#16a34a":"#94a3b8",fontSize:11,fontFamily:"Calibri,sans-serif",fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>{d.dmEngaged?"● Activado":"○ No activado"}</button>
+   </div>
+   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+    <div><div style={lbl}>Último contacto</div><input value={d.lastContact} onChange={e=>set("lastContact",e.target.value)} style={inp} placeholder="Jun-26 · comida"/></div>
+    <div><div style={lbl}>Fecha límite del compromiso</div><input type="date" value={d.commitDate||""} onChange={e=>set("commitDate",e.target.value)} style={inp}/></div>
+   </div>
+   <div style={{marginBottom:12}}>
+    <div style={lbl}>Mi próximo compromiso</div>
+    <input value={d.nextAction} onChange={e=>set("nextAction",e.target.value)} style={inp} placeholder="Qué me comprometo a hacer (p.ej. enviar propuesta a Pedro)"/>
+   </div>
+   <div style={{marginBottom:18}}><div style={lbl}>Notas</div><textarea value={d.notes} onChange={e=>set("notes",e.target.value)} rows={2} style={{...inp,resize:"vertical"}}/></div>
+   <div style={{display:"flex",gap:8,justifyContent:"space-between"}}>
+    <div style={{display:"flex",gap:8}}>
+     <button onClick={()=>onSave(d)} disabled={!d.account} style={{background:d.account?NAVY:"#CBD5E1",color:WHITE,border:"none",borderRadius:8,padding:"9px 20px",fontSize:13,fontFamily:"Calibri,sans-serif",fontWeight:700,cursor:d.account?"pointer":"default"}}>Guardar</button>
+     <button onClick={onClose} style={{background:"#f1f5f9",color:"#64748B",border:"none",borderRadius:8,padding:"9px 16px",fontSize:13,fontFamily:"Calibri,sans-serif",cursor:"pointer"}}>Cancelar</button>
+    </div>
+    {item&&<button onClick={()=>onRemove(item.id)} style={{background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA",borderRadius:8,padding:"9px 14px",fontSize:12,fontFamily:"Calibri,sans-serif",cursor:"pointer"}}>Eliminar</button>}
+   </div>
+  </div>
+ </div>);
+}
+
+function BarbechoModal({item,onConfirm,onClose}){
+ const [reason,setReason]=useState("");
+ const [date,setDate]=useState("");
+ const inp={width:"100%",border:"1px solid #E2E8F0",borderRadius:6,padding:"7px 10px",fontSize:12,fontFamily:"Calibri,sans-serif",boxSizing:"border-box",outline:"none"};
+ const lbl={fontSize:10,color:GRAY,fontFamily:"Calibri,sans-serif",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.05em"};
+ return(
+ <div style={{position:"fixed",inset:0,background:"rgba(0,32,96,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100,padding:20}}>
+  <div style={{background:WHITE,borderRadius:14,padding:26,width:420,boxShadow:"0 20px 60px rgba(0,32,96,0.3)"}}>
+   <div style={{fontSize:17,fontWeight:"bold",color:NAVY,marginBottom:6,fontFamily:"Georgia,serif"}}>💤 Pasar a barbecho</div>
+   <div style={{fontSize:12.5,color:"#64748B",fontFamily:"Calibri,sans-serif",marginBottom:18}}><strong>{item.account}</strong> sale del pipeline activo, pero no se pierde. Le ponemos una fecha para reactivarla.</div>
+   <div style={{marginBottom:12}}><div style={lbl}>Motivo</div><input value={reason} onChange={e=>setReason(e.target.value)} style={inp} placeholder="p.ej. presupuesto cerrado 2026 / acaban de internalizar"/></div>
+   <div style={{marginBottom:18}}><div style={lbl}>Fecha de reactivación</div><input type="date" value={date} onChange={e=>setDate(e.target.value)} style={inp}/></div>
+   <div style={{display:"flex",gap:8}}>
+    <button onClick={()=>onConfirm(item,reason,date)} style={{flex:1,background:NAVY,color:WHITE,border:"none",borderRadius:8,padding:"10px 0",fontSize:13,fontFamily:"Calibri,sans-serif",fontWeight:700,cursor:"pointer"}}>Confirmar</button>
+    <button onClick={onClose} style={{background:"#f1f5f9",color:"#64748B",border:"none",borderRadius:8,padding:"10px 16px",fontSize:13,fontFamily:"Calibri,sans-serif",cursor:"pointer"}}>Cancelar</button>
+   </div>
+  </div>
+ </div>);
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
