@@ -3,318 +3,623 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Operación Siembra · TwinPikes</title>
+<title>Operación Siembra · TwinPikes Partners</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-<style>body{margin:0;padding:0}*{box-sizing:border-box}</style>
+<style>
+  :root {
+    --navy: #002060; --navy-deep: #001640; --navy-tint: #1A3878;
+    --gold: #C2A34E; --gold-tint: #D9C07A; --gold-light: #F5EFE0;
+    --white: #FFFFFF; --bg: #F4F4F2; --bg-warm: #FAF9F7;
+    --soft: #E8E8E6; --line: #D0D0CE; --faint: #B8B8B6;
+    --ink: #1A1A1A; --muted: #595959; --ghost: #909090;
+    --pos: #1E7F4A; --pos-bg: #EDF7F1;
+    --warn: #C2A34E; --warn-bg: #FBF6EA;
+    --neg: #B23A2B; --neg-bg: #FCECEA;
+    --font: 'Arial Nova', Arial, 'Helvetica Neue', sans-serif;
+    --shadow-sm: 0 1px 3px rgba(0,32,96,0.08);
+    --shadow-md: 0 4px 16px rgba(0,32,96,0.12);
+    --shadow-lg: 0 16px 48px rgba(0,0,0,0.28);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { font-family: var(--font); background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; }
+  button, input, select, textarea { font-family: var(--font); }
+  button { cursor: pointer; border: none; outline: none; }
+  input, select, textarea { outline: none; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--soft); }
+  ::-webkit-scrollbar-thumb { background: var(--line); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--faint); }
+
+  /* Transitions */
+  .card { transition: box-shadow 0.15s, transform 0.15s; }
+  .card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+  .btn-primary { transition: background 0.15s, opacity 0.15s; }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-ghost { transition: background 0.15s, color 0.15s; }
+  .btn-ghost:hover { background: var(--soft) !important; }
+
+  /* Tooltip */
+  [data-tip] { position: relative; }
+  [data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    background: var(--navy); color: var(--white); font-size: 10px; letter-spacing: 0.04em;
+    white-space: nowrap; padding: 4px 8px; pointer-events: none; z-index: 999;
+  }
+
+  /* Fade-in animation */
+  @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  .fade-up { animation: fadeUp 0.25s ease both; }
+
+  /* Checkbox animation */
+  @keyframes checkPop { 0%{transform:scale(0.6)} 60%{transform:scale(1.2)} 100%{transform:scale(1)} }
+  .check-pop { animation: checkPop 0.2s ease; }
+</style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect } = React;
+const { useState, useEffect, useCallback, useRef } = React;
 
-// Fallback storage: usa window.storage si existe (compartido en Claude), si no localStorage.
-const store = {
-  async get(k){ try{ if(window.storage) return await window.storage.get(k,true); const v=localStorage.getItem(k); return v?{value:v}:null; }catch{ const v=localStorage.getItem(k); return v?{value:v}:null; } },
-  async set(k,v){ try{ if(window.storage) return await window.storage.set(k,v,true); localStorage.setItem(k,v); }catch{ localStorage.setItem(k,v); } }
-};
+// ── Config ────────────────────────────────────────────────────────────────────
+const SUPABASE_URL = "https://alppchliuvyijixibwuw.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFscHBjaGxpdXZ5aWppeGlid3V3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMTk4ODMsImV4cCI6MjA5NzY5NTg4M30.ca5QqHgGnqiiO5K_15ZfP1GBXg4ZIWC7hzfqCUFuLZE";
+const APP_PASSWORD = "Muntaner479";
+const LOGO_SRC = "data:image/jpeg;base64,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";
 
-const NAVY="#002060",GOLD="#C2A34E",GOLD_LIGHT="#E8D9A0",GRAY="#BFBFBF",WHITE="#FFFFFF",LIGHT_BG="#F8F7F4";
-const STAGES={Harvesting:{prob:.10,color:"#64748B",bg:"#F1F5F9"},Assessment:{prob:.30,color:GOLD,bg:"#FBF6EA"},Scrutiny:{prob:.70,color:NAVY,bg:"#EEF2F9"},Execution:{prob:1,color:"#16a34a",bg:"#F0FDF4"}};
-const STAGE_ORDER=["Harvesting","Assessment","Scrutiny","Execution"];
-const CHECKLISTS={
- Harvesting:["Primera conversación real celebrada","Champion identificado","Decision-maker identificado + camino para llegar","Concepto Sales Ops Outsourcing explicado","Factores de bloqueo identificados y tipificados","Interés explícito — próxima conversación acordada"],
- Assessment:["Deck presentado formalmente al Champion","Decision-maker conoce la iniciativa","Encaje confirmado — building blocks identificados","Contexto presupuestario entendido","Sin factores de bloqueo activos sin gestionar","Champion ha pedido / dado luz verde a la propuesta"],
- Scrutiny:["Propuesta formal presentada al Decision-maker","Términos económicos sobre la mesa sin rechazo","Timeline de decisión conocido","Interlocución directa con Decision-maker establecida","SLAs primeros 2 meses negociados y acordados","Contrato o acuerdo de inicio en preparación"],
- Execution:[]
+async function sbGet() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/pipeline?key=eq.siembra_main&select=value`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+  });
+  const rows = await res.json();
+  return rows?.length > 0 ? rows[0].value : null;
+}
+async function sbSet(value) {
+  await fetch(`${SUPABASE_URL}/rest/v1/pipeline`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" },
+    body: JSON.stringify({ key: "siembra_main", value })
+  });
+}
+
+// ── Data ──────────────────────────────────────────────────────────────────────
+const STAGES = {
+  Harvesting: { prob:.10, color:"#64748B", bg:"#F1F5F9", border:"#CBD5E1", label:"Harvesting" },
+  Assessment: { prob:.30, color:"#A0863B", bg:"#FBF6EA", border:"#C2A34E", label:"Assessment" },
+  Scrutiny:   { prob:.70, color:"#002060", bg:"#EEF2F9", border:"#002060", label:"Scrutiny" },
+  Execution:  { prob:1,   color:"#1E7F4A", bg:"#EDF7F1", border:"#1E7F4A", label:"Execution" }
 };
-const AXES=["Talento","Sector","KAM","Portfolio"];
-const FEE_LA=18750,FEE_SME=7500;
-const INITIAL=[
- {id:"p1",account:"ILC Dover",type:"LA",stage:"Assessment",champion:"Ciro Ahumada (CEO)",dm:"Scott (CEO Ingersoll Rand div.)",dmEngaged:false,lastContact:"Jun-26 · reunión",nextAction:"Esperando feedback Go/No-Go (2-3 días)",axes:["Sector","KAM"],notes:"Proyecto KAM previo. Start Jul-26.",checklist:{}},
- {id:"p2",account:"Fluidra SAENZ",type:"LA",stage:"Assessment",champion:"Albert Lluís (Dir. Comercial)",dm:"Carlos Franquesa (GM EMEA)",dmEngaged:true,lastContact:"May-26 · presentación",nextAction:"Preparar propuesta específica. Start 1-Sep-26",axes:["KAM","Portfolio"],notes:"Validación fuerte de Albert Lluís.",checklist:{}},
- {id:"p3",account:"Renolit",type:"LA",stage:"Assessment",champion:"Miquel López",dm:"Pedro Arrebola (CEO piscinas)",dmEngaged:false,lastContact:"May-26 · comida",nextAction:"Entregar propuesta para Pedro en la reunión",commitDate:"2026-06-16",axes:["Talento","Sector"],notes:"Conflicto Fluidra ya gestionado (no compiten). Start 1-Ene-27.",checklist:{}},
- {id:"p4",account:"Girbau",type:"LA",stage:"Assessment",champion:"Martí Giralt (CEO)",dm:"Martí Giralt (CEO)",dmEngaged:true,lastContact:"May-26 · llamada",nextAction:"Comida: profundizar nombres red + cerrar siguiente paso",commitDate:"2026-06-19",axes:["Talento"],notes:"Champion = Decision-maker. Evangelista en su red. Start 1-Ene-27.",checklist:{}},
- {id:"p5",account:"Iberspa",type:"SME",stage:"Assessment",champion:"Artur Deu (CEO)",dm:"Artur Deu (CEO)",dmEngaged:true,lastContact:"01/06 · sparring",nextAction:"Adaptar deck a versión PyME. Q2-27",axes:["Talento"],notes:"Feedback: outcomes-first, pricing upfront.",checklist:{}},
- {id:"p6",account:"Fluidra CEEM",type:"LA",stage:"Harvesting",champion:"David Méndez (GM)",dm:"TBD",dmEngaged:false,lastContact:"May-26 · presentación",nextAction:"Esperar señal. No forzar.",axes:["KAM"],notes:"Lo ve interesante. Mantener relación.",checklist:{}},
- {id:"p7",account:"Circutor",type:"LA",stage:"Harvesting",champion:"Marc Pérez (CEO)",dm:"Marc Pérez / Propiedad",dmEngaged:false,lastContact:"May-26 · conversación",nextAction:"Pivotar a propuesta operativa concreta.",axes:["Talento","Sector"],notes:"Propiedad rechaza consultoría estratégica; abierto a operativo.",checklist:{}},
- {id:"p8",account:"Simón",type:"LA",stage:"Harvesting",champion:"Esteban Bretcha (CEO)",dm:"Esteban Bretcha (CEO)",dmEngaged:false,lastContact:"May-26",nextAction:"Enviar insight puente jun. Reunión julio.",axes:["Sector","Portfolio"],notes:"Reunión acordada para julio.",checklist:{}},
- {id:"p9",account:"Loomis",type:"LA",stage:"Harvesting",champion:"Alejandro Corominas (CEO)",dm:"Alejandro Corominas (CEO)",dmEngaged:false,lastContact:"May-26 · comida",nextAction:"Reunión 2 sem. Plantear SalesOps + Francia (Kéa).",axes:["Portfolio"],notes:"Amigo personal. Interés filial Francia.",checklist:{}},
- {id:"p10",account:"Frulact",type:"LA",stage:"Harvesting",champion:"Dinorah Mandic (CEO)",dm:"Dinorah Mandic (CEO)",dmEngaged:false,lastContact:"Activo / continuo",nextAction:"Plantear concepto SalesOps. Pedir referencias.",axes:["Sector","KAM"],notes:"5 proyectos hechos. Relación densa.",checklist:{}},
- {id:"p11",account:"Reig Jofre",type:"LA",stage:"Harvesting",champion:"TBD",dm:"TBD",dmEngaged:false,lastContact:"—",nextAction:"Intro vía Ignacio Franquesa. Caso ILC/Qualicaps.",axes:["Sector"],notes:"Pharma B2B Barcelona. Vía Ignacio Franquesa (ext.).",checklist:{}},
- {id:"p12",account:"Emergia",type:"LA",stage:"Harvesting",champion:"Albert Ollé (propietario)",dm:"Julio Jolin (DG)",dmEngaged:false,lastContact:"May-26 · comida",nextAction:"Hablar con Albert + Julio. Feedback concepto. Interés KAM.",axes:["KAM","Sector"],notes:"BPO call center. Base limitada pero KAM exigente (como ILC).",checklist:{}}
+const STAGE_ORDER = ["Harvesting","Assessment","Scrutiny","Execution"];
+const CHECKLISTS = {
+  Harvesting: ["Primera conversación real celebrada","Champion identificado","Decision-maker identificado + camino para llegar","Concepto Sales Ops Outsourcing explicado","Factores de bloqueo identificados y tipificados","Interés explícito — próxima conversación acordada"],
+  Assessment: ["Deck presentado formalmente al Champion","Decision-maker conoce la iniciativa","Encaje confirmado — building blocks identificados","Contexto presupuestario entendido","Sin factores de bloqueo activos sin gestionar","Champion ha pedido / dado luz verde a la propuesta"],
+  Scrutiny:   ["Propuesta formal presentada al Decision-maker","Términos económicos sobre la mesa sin rechazo","Timeline de decisión conocido","Interlocución directa con Decision-maker establecida","SLAs primeros 2 meses negociados y acordados","Contrato o acuerdo de inicio en preparación"],
+  Execution:  []
+};
+const AXES = ["Talento","Sector","KAM","Portfolio"];
+const FEE = { LA: 18750, SME: 7500 };
+const INITIAL = [
+  {id:"p1",account:"ILC Dover",type:"LA",stage:"Assessment",champion:"Ciro Ahumada (CEO)",dm:"Scott (CEO Ingersoll Rand div.)",dmEngaged:false,lastContact:"Jun-26 · reunión",nextAction:"Esperando feedback Go/No-Go (2-3 días)",axes:["Sector","KAM"],notes:"Proyecto KAM previo. Start Jul-26.",checklist:{}},
+  {id:"p2",account:"Fluidra SAENZ",type:"LA",stage:"Assessment",champion:"Albert Lluís (Dir. Comercial)",dm:"Carlos Franquesa (GM EMEA)",dmEngaged:true,lastContact:"May-26 · presentación",nextAction:"Preparar propuesta específica. Start 1-Sep-26",axes:["KAM","Portfolio"],notes:"Validación fuerte de Albert Lluís.",checklist:{}},
+  {id:"p3",account:"Renolit",type:"LA",stage:"Assessment",champion:"Miquel López",dm:"Pedro Arrebola (CEO piscinas)",dmEngaged:false,lastContact:"May-26 · comida",nextAction:"Entregar propuesta para Pedro en la reunión",commitDate:"2026-06-16",axes:["Talento","Sector"],notes:"Conflicto Fluidra ya gestionado (no compiten). Start 1-Ene-27.",checklist:{}},
+  {id:"p4",account:"Girbau",type:"LA",stage:"Assessment",champion:"Martí Giralt (CEO)",dm:"Martí Giralt (CEO)",dmEngaged:true,lastContact:"May-26 · llamada",nextAction:"Comida: profundizar nombres red + cerrar siguiente paso",commitDate:"2026-06-19",axes:["Talento"],notes:"Champion = Decision-maker. Evangelista en su red. Start 1-Ene-27.",checklist:{}},
+  {id:"p5",account:"Iberspa",type:"SME",stage:"Assessment",champion:"Artur Deu (CEO)",dm:"Artur Deu (CEO)",dmEngaged:true,lastContact:"01/06 · sparring",nextAction:"Adaptar deck a versión PyME. Q2-27",axes:["Talento"],notes:"Feedback: outcomes-first, pricing upfront.",checklist:{}},
+  {id:"p6",account:"Fluidra CEEM",type:"LA",stage:"Harvesting",champion:"David Méndez (GM)",dm:"TBD",dmEngaged:false,lastContact:"May-26 · presentación",nextAction:"Esperar señal. No forzar.",axes:["KAM"],notes:"Lo ve interesante. Mantener relación.",checklist:{}},
+  {id:"p7",account:"Circutor",type:"LA",stage:"Harvesting",champion:"Marc Pérez (CEO)",dm:"Marc Pérez / Propiedad",dmEngaged:false,lastContact:"May-26 · conversación",nextAction:"Pivotar a propuesta operativa concreta.",axes:["Talento","Sector"],notes:"Propiedad rechaza consultoría estratégica; abierto a operativo.",checklist:{}},
+  {id:"p8",account:"Simón",type:"LA",stage:"Harvesting",champion:"Esteban Bretcha (CEO)",dm:"Esteban Bretcha (CEO)",dmEngaged:false,lastContact:"May-26",nextAction:"Enviar insight puente jun. Reunión julio.",axes:["Sector","Portfolio"],notes:"Reunión acordada para julio.",checklist:{}},
+  {id:"p9",account:"Loomis",type:"LA",stage:"Harvesting",champion:"Alejandro Corominas (CEO)",dm:"Alejandro Corominas (CEO)",dmEngaged:false,lastContact:"May-26 · comida",nextAction:"Reunión 2 sem. Plantear SalesOps + Francia (Kéa).",axes:["Portfolio"],notes:"Amigo personal. Interés filial Francia.",checklist:{}},
+  {id:"p10",account:"Frulact",type:"LA",stage:"Harvesting",champion:"Dinorah Mandic (CEO)",dm:"Dinorah Mandic (CEO)",dmEngaged:false,lastContact:"Activo / continuo",nextAction:"Plantear concepto SalesOps. Pedir referencias.",axes:["Sector","KAM"],notes:"5 proyectos hechos. Relación densa.",checklist:{}},
+  {id:"p11",account:"Reig Jofre",type:"LA",stage:"Harvesting",champion:"TBD",dm:"TBD",dmEngaged:false,lastContact:"—",nextAction:"Intro vía Ignacio Franquesa. Caso ILC/Qualicaps.",axes:["Sector"],notes:"Pharma B2B Barcelona. Vía Ignacio Franquesa (ext.).",checklist:{}},
+  {id:"p12",account:"Emergia",type:"LA",stage:"Harvesting",champion:"Albert Ollé (propietario)",dm:"Julio Jolin (DG)",dmEngaged:false,lastContact:"May-26 · comida",nextAction:"Hablar con Albert + Julio. Feedback concepto. Interés KAM.",axes:["KAM","Sector"],notes:"BPO call center. Base limitada pero KAM exigente (como ILC).",checklist:{}}
 ];
 
-function App(){
- const [items,setItems]=useState(INITIAL);
- const [expanded,setExpanded]=useState(null);
- const [editing,setEditing]=useState(null);
- const [adding,setAdding]=useState(false);
- const [saved,setSaved]=useState(false);
- const [dormantTarget,setDormantTarget]=useState(null);
- useEffect(()=>{(async()=>{try{const r=await store.get("siembra_v2");if(r)setItems(JSON.parse(r.value));}catch{}})();},[]);
- async function persist(next){setItems(next);try{await store.set("siembra_v2",JSON.stringify(next));setSaved(true);setTimeout(()=>setSaved(false),1500);}catch{}}
- const active=items.filter(i=>!i.dormant);
- const dormant=items.filter(i=>i.dormant);
- const liveCount=active.filter(i=>i.stage!=="Execution").length;
- const fee=i=>i.type==="LA"?FEE_LA:FEE_SME;
- const ev=i=>fee(i)*12*STAGES[i.stage].prob;
- const totalW=active.reduce((s,i)=>s+ev(i),0);
- const totalF=active.reduce((s,i)=>s+fee(i)*12,0);
- const fmt=n=>"€"+Math.round(n/1000)+"k";
- const fmtDate=ds=>{if(!ds)return"";const[y,m,d]=ds.split("-");return d+"/"+m;};
- function dateStatus(ds){
-  if(!ds)return null;
-  const t=new Date();t.setHours(0,0,0,0);
-  const d=new Date(ds+"T00:00:00");
-  const diff=Math.round((d-t)/86400000);
-  if(diff<0)return{key:"overdue",label:"Vencida ("+fmtDate(ds)+")",color:"#DC2626",bg:"#FEF2F2"};
-  if(diff===0)return{key:"soon",label:"Hoy",color:"#D97706",bg:"#FFFBEB"};
-  if(diff<=7)return{key:"soon",label:"Vence en "+diff+"d ("+fmtDate(ds)+")",color:"#D97706",bg:"#FFFBEB"};
-  return{key:"ok",label:fmtDate(ds),color:"#16a34a",bg:"#F0FDF4"};
- }
- const overdueCount=active.filter(i=>i.stage!=="Execution"&&dateStatus(i.commitDate)&&dateStatus(i.commitDate).key==="overdue").length;
- const reactivateCount=dormant.filter(i=>{if(!i.reactivateDate)return false;const t=new Date();t.setHours(0,0,0,0);return new Date(i.reactivateDate+"T00:00:00")<=t;}).length;
- function toggleCheck(item,idx){const cl={...(item.checklist||{})};const k=item.stage+"_"+idx;cl[k]=!cl[k];persist(items.map(i=>i.id===item.id?{...i,checklist:cl}:i));}
- function prog(item){const l=CHECKLISTS[item.stage]||[];if(!l.length)return{done:0,total:0};const done=l.filter((_,idx)=>item.checklist&&item.checklist[item.stage+"_"+idx]).length;return{done,total:l.length};}
- function move(item,dir){const idx=STAGE_ORDER.indexOf(item.stage);const ni=Math.max(0,Math.min(3,idx+dir));persist(items.map(i=>i.id===item.id?{...i,stage:STAGE_ORDER[ni]}:i));}
- function saveEdit(d){if(d.id)persist(items.map(i=>i.id===d.id?d:i));else persist([...items,{...d,id:"p"+Date.now(),checklist:{}}]);setEditing(null);setAdding(false);}
- function remove(id){persist(items.filter(i=>i.id!==id));setEditing(null);}
- function sendToBarbecho(item,reason,date){persist(items.map(i=>i.id===item.id?{...i,dormant:true,dormantReason:reason,reactivateDate:date}:i));setDormantTarget(null);}
- function reactivate(item){persist(items.map(i=>i.id===item.id?{...i,dormant:false,dormantReason:"",reactivateDate:""}:i));}
- function exportData(){
-  const blob=new Blob([JSON.stringify(items,null,2)],{type:"application/json"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  const d=new Date(),pad=n=>String(n).padStart(2,"0");
-  a.href=url;a.download="OperacionSiembra_"+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+".json";
-  a.click();URL.revokeObjectURL(url);
- }
- function importData(e){
-  const file=e.target.files[0];if(!file)return;
-  const r=new FileReader();
-  r.onload=ev=>{try{const data=JSON.parse(ev.target.result);if(Array.isArray(data)){persist(data);alert("Pipeline importado: "+data.length+" oportunidades.");}else alert("El archivo no tiene el formato esperado.");}catch{alert("No se pudo leer el archivo.");}};
-  r.readAsText(file);e.target.value="";
- }
-
- return (
- <div style={{fontFamily:"Georgia, serif",background:LIGHT_BG,minHeight:"100vh",paddingBottom:40}}>
-  <div style={{background:NAVY,padding:"26px 32px 22px",borderBottom:"4px solid "+GOLD}}>
-   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:16,maxWidth:1180,margin:"0 auto"}}>
-    <div>
-     <div style={{color:GOLD,fontSize:11,letterSpacing:"0.18em",textTransform:"uppercase",fontFamily:"Calibri,sans-serif",marginBottom:6}}>TwinPikes Partners · Sales Ops Outsourcing</div>
-     <div style={{color:WHITE,fontSize:28,fontWeight:"bold"}}>Operación Siembra</div>
-     <div style={{color:GRAY,fontSize:12,fontFamily:"Calibri,sans-serif",marginTop:4}}>Sistema comercial activo · empujamos el pipeline, no esperamos</div>
-    </div>
-    <div style={{display:"flex",gap:14,alignItems:"center"}}>
-     {saved&&<span style={{color:GOLD_LIGHT,fontFamily:"Calibri,sans-serif",fontSize:12}}>✓ Guardado</span>}
-     <div style={{textAlign:"center",background:"rgba(255,255,255,0.06)",borderRadius:10,padding:"10px 18px"}}>
-      <div style={{color:WHITE,fontSize:24,fontWeight:"bold"}}>{fmt(totalF)}</div>
-      <div style={{color:GRAY,fontSize:9.5,fontFamily:"Calibri,sans-serif",letterSpacing:"0.1em"}}>PIPELINE TOTAL</div>
-     </div>
-     <div style={{textAlign:"center",background:"rgba(255,255,255,0.06)",borderRadius:10,padding:"10px 18px"}}>
-      <div style={{color:GOLD_LIGHT,fontSize:24,fontWeight:"bold"}}>{fmt(totalW)}</div>
-      <div style={{color:GRAY,fontSize:9.5,fontFamily:"Calibri,sans-serif",letterSpacing:"0.1em"}}>PIPELINE PONDERADO</div>
-     </div>
-     <div style={{textAlign:"center",background:liveCount>=10?"rgba(197,163,78,0.18)":"rgba(220,38,38,0.2)",border:"1px solid "+(liveCount>=10?GOLD:"#ef4444"),borderRadius:10,padding:"10px 18px"}}>
-      <div style={{color:liveCount>=10?GOLD_LIGHT:"#fca5a5",fontSize:24,fontWeight:"bold"}}>{liveCount}</div>
-      <div style={{color:GRAY,fontSize:9.5,fontFamily:"Calibri,sans-serif",letterSpacing:"0.1em"}}>VIVAS {liveCount>=10?"✓":"· MÍN. 10"}</div>
-     </div>
-     <div style={{textAlign:"center",background:overdueCount>0?"rgba(220,38,38,0.2)":"rgba(255,255,255,0.06)",border:"1px solid "+(overdueCount>0?"#ef4444":"rgba(255,255,255,0.15)"),borderRadius:10,padding:"10px 18px"}}>
-      <div style={{color:overdueCount>0?"#fca5a5":GOLD_LIGHT,fontSize:24,fontWeight:"bold"}}>{overdueCount}</div>
-      <div style={{color:GRAY,fontSize:9.5,fontFamily:"Calibri,sans-serif",letterSpacing:"0.1em"}}>ACCIONES VENCIDAS</div>
-     </div>
-     {(dormant.length>0)&&<div style={{textAlign:"center",background:reactivateCount>0?"rgba(217,119,6,0.22)":"rgba(255,255,255,0.06)",border:"1px solid "+(reactivateCount>0?"#f59e0b":"rgba(255,255,255,0.15)"),borderRadius:10,padding:"10px 18px"}}>
-      <div style={{color:reactivateCount>0?"#fcd34d":GOLD_LIGHT,fontSize:24,fontWeight:"bold"}}>{reactivateCount}</div>
-      <div style={{color:GRAY,fontSize:9.5,fontFamily:"Calibri,sans-serif",letterSpacing:"0.1em"}}>POR REACTIVAR</div>
-     </div>}
-    </div>
-   </div>
-  </div>
-
-  <div style={{maxWidth:1180,margin:"0 auto",padding:"0 20px"}}>
-   <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginTop:24,marginBottom:8}}>
-    {STAGE_ORDER.map(s=>{const st=STAGES[s];const inStage=active.filter(i=>i.stage===s);const cnt=inStage.length;const la=inStage.filter(i=>i.type==="LA").length;const sme=inStage.filter(i=>i.type==="SME").length;const val=inStage.reduce((a,i)=>a+ev(i),0);return(
-     <div key={s} style={{background:WHITE,borderRadius:10,border:"1px solid #E2E8F0",padding:"12px 14px",borderTop:"3px solid "+st.color}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
-       <span style={{color:st.color,fontSize:12,fontFamily:"Calibri,sans-serif",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em"}}>{s}</span>
-       <span style={{color:GRAY,fontSize:10,fontFamily:"Calibri,sans-serif"}}>{Math.round(st.prob*100)}%</span>
-      </div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginTop:6}}>
-       <span style={{color:NAVY,fontSize:22,fontWeight:"bold"}}>{cnt}</span>
-       <span style={{color:"#64748B",fontSize:12,fontFamily:"Calibri,sans-serif"}}>{fmt(val)}</span>
-      </div>
-      <div style={{fontSize:9.5,color:"#94a3b8",fontFamily:"Calibri,sans-serif",marginTop:3}}>{la} LA · {sme} PYME</div>
-     </div>);})}
-   </div>
-   <div style={{textAlign:"right",fontSize:11,color:"#94a3b8",fontFamily:"Calibri,sans-serif",marginBottom:18}}>
-    Pipeline a valor pleno: {fmt(totalF)} · ponderado por probabilidad: <strong style={{color:NAVY}}>{fmt(totalW)}</strong>
-   </div>
-
-   <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:14,alignItems:"center"}}>
-    <button onClick={exportData} style={{background:WHITE,color:NAVY,border:"1px solid "+NAVY,borderRadius:8,padding:"8px 14px",fontSize:11.5,fontFamily:"Calibri,sans-serif",fontWeight:700,cursor:"pointer"}}>↓ Exportar backup</button>
-    <label style={{background:WHITE,color:NAVY,border:"1px solid "+NAVY,borderRadius:8,padding:"8px 14px",fontSize:11.5,fontFamily:"Calibri,sans-serif",fontWeight:700,cursor:"pointer"}}>↑ Importar<input type="file" accept="application/json,.json" onChange={importData} style={{display:"none"}}/></label>
-    <button onClick={()=>setAdding(true)} style={{background:GOLD,color:NAVY,border:"none",borderRadius:8,padding:"9px 18px",fontSize:12,fontFamily:"Calibri,sans-serif",fontWeight:700,cursor:"pointer",letterSpacing:"0.04em"}}>+ Nueva oportunidad</button>
-   </div>
-
-   {STAGE_ORDER.map(stage=>{const list=active.filter(i=>i.stage===stage);if(!list.length)return null;const st=STAGES[stage];return(
-    <div key={stage} style={{marginBottom:28}}>
-     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-      <div style={{width:4,height:20,background:st.color,borderRadius:2}}></div>
-      <h2 style={{margin:0,fontSize:16,color:NAVY}}>{stage}</h2>
-      <span style={{background:st.bg,color:st.color,borderRadius:20,padding:"2px 10px",fontSize:11,fontFamily:"Calibri,sans-serif",fontWeight:700}}>{list.length} · {Math.round(st.prob*100)}%</span>
-     </div>
-     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(340px,1fr))",gap:12}}>
-      {list.map(item=>{const p=prog(item);const isOpen=expanded===item.id;return(
-       <div key={item.id} style={{background:WHITE,borderRadius:10,border:"1px solid #E2E8F0",overflow:"hidden",boxShadow:"0 1px 4px rgba(0,32,96,0.06)"}}>
-        <div style={{background:st.bg,borderBottom:"2px solid "+st.color,padding:"9px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-         <span style={{background:item.type==="LA"?NAVY:GOLD,color:WHITE,borderRadius:4,padding:"1px 7px",fontSize:9.5,fontFamily:"Calibri,sans-serif",fontWeight:700}}>{item.type}</span>
-         <span style={{color:st.color,fontSize:12,fontFamily:"Calibri,sans-serif",fontWeight:700}}>{fmt(ev(item))} <span style={{fontWeight:400,color:"#94a3b8",fontSize:10}}>esp.</span></span>
-        </div>
-        <div style={{padding:"12px 14px"}}>
-         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-          <div style={{fontSize:16,fontWeight:"bold",color:NAVY}}>{item.account}</div>
-          <button onClick={()=>setEditing(item)} style={{background:"none",border:"none",color:GRAY,cursor:"pointer",fontSize:14}}>✎</button>
-         </div>
-         <div style={{display:"flex",gap:4,flexWrap:"wrap",margin:"6px 0 10px"}}>
-          {(item.axes||[]).map(a=><span key={a} style={{background:"#F1F5F9",color:"#64748B",borderRadius:4,padding:"1px 7px",fontSize:9.5,fontFamily:"Calibri,sans-serif"}}>{a}</span>)}
-         </div>
-         <div style={{fontSize:11.5,fontFamily:"Calibri,sans-serif",lineHeight:1.6}}>
-          <div><span style={{color:GOLD,fontWeight:700}}>Champion:</span> <span style={{color:"#475569"}}>{item.champion||"—"}</span></div>
-          <div><span style={{color:NAVY,fontWeight:700}}>Decision-maker:</span> <span style={{color:"#475569"}}>{item.dm||"—"}</span> {item.dmEngaged?<span style={{color:"#16a34a",fontSize:10}}>● activado</span>:<span style={{color:"#f59e0b",fontSize:10}}>○ no activado</span>}</div>
-         </div>
-         <div style={{fontSize:11,color:"#475569",fontFamily:"Calibri,sans-serif",background:"#F8F7F4",borderRadius:6,padding:"7px 9px",margin:"10px 0"}}>
-          <span style={{color:GOLD,fontWeight:700}}>→ </span>{item.nextAction||"—"}
-          {(()=>{const ds=dateStatus(item.commitDate);return ds?(<div style={{display:"inline-block",marginTop:5,background:ds.bg,color:ds.color,borderRadius:4,padding:"1px 7px",fontSize:10,fontWeight:700}}>{ds.label}</div>):null;})()}
-          {item.lastContact&&<div style={{color:"#94a3b8",fontSize:10,marginTop:4}}>Últ. contacto: {item.lastContact}</div>}
-         </div>
-         {p.total>0&&(
-          <div onClick={()=>setExpanded(isOpen?null:item.id)} style={{cursor:"pointer",display:"flex",alignItems:"center",gap:8,marginBottom:isOpen?8:0}}>
-           <div style={{flex:1,height:6,background:"#E2E8F0",borderRadius:3,overflow:"hidden"}}><div style={{width:(p.done/p.total*100)+"%",height:"100%",background:st.color}}></div></div>
-           <span style={{fontSize:10.5,color:"#64748B",fontFamily:"Calibri,sans-serif",fontWeight:700}}>{p.done}/{p.total} {isOpen?"▲":"▼"}</span>
-          </div>
-         )}
-         {isOpen&&p.total>0&&(
-          <div style={{marginTop:4}}>
-           <div style={{fontSize:9.5,color:GRAY,fontFamily:"Calibri,sans-serif",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6}}>Para pasar a {STAGE_ORDER[STAGE_ORDER.indexOf(stage)+1]||"cierre"}:</div>
-           {CHECKLISTS[stage].map((c,idx)=>{const checked=item.checklist&&item.checklist[stage+"_"+idx];return(
-            <div key={idx} onClick={()=>toggleCheck(item,idx)} style={{display:"flex",alignItems:"flex-start",gap:7,padding:"4px 0",cursor:"pointer"}}>
-             <div style={{width:15,height:15,borderRadius:4,border:"1.5px solid "+(checked?st.color:"#CBD5E1"),background:checked?st.color:WHITE,flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center"}}>{checked&&<span style={{color:WHITE,fontSize:10}}>✓</span>}</div>
-             <span style={{fontSize:11,fontFamily:"Calibri,sans-serif",color:checked?"#94a3b8":"#475569",textDecoration:checked?"line-through":"none",lineHeight:1.4}}>{c}</span>
-            </div>);})}
-          </div>
-         )}
-         <div style={{display:"flex",gap:6,marginTop:12}}>
-          {STAGE_ORDER.indexOf(stage)>0&&<button onClick={()=>move(item,-1)} style={{background:"#f1f5f9",color:"#64748B",border:"none",borderRadius:6,padding:"5px 10px",fontSize:10.5,fontFamily:"Calibri,sans-serif",cursor:"pointer"}}>← Atrás</button>}
-          {STAGE_ORDER.indexOf(stage)<3&&(()=>{const ready=p.total>0&&p.done===p.total;return(
-           <button onClick={()=>ready?move(item,1):setExpanded(item.id)} title={ready?"":"Completa el checklist para avanzar"} style={{flex:1,background:ready?NAVY:"#E2E8F0",color:ready?WHITE:"#94a3b8",border:"none",borderRadius:6,padding:"5px 10px",fontSize:10.5,fontFamily:"Calibri,sans-serif",cursor:"pointer",fontWeight:700}}>{ready?("Avanzar a "+STAGE_ORDER[STAGE_ORDER.indexOf(stage)+1]+" →"):("🔒 Faltan "+(p.total-p.done)+" para avanzar")}</button>);})()}
-         </div>
-         {stage!=="Execution"&&<div style={{textAlign:"center",marginTop:7}}><button onClick={()=>setDormantTarget(item)} style={{background:"none",border:"none",color:"#94a3b8",fontSize:10,fontFamily:"Calibri,sans-serif",cursor:"pointer",textDecoration:"underline"}}>💤 Pasar a barbecho</button></div>}
-        </div>
-       </div>);})}
-     </div>
-    </div>);})}
-
-   {dormant.length>0&&(
-    <div style={{marginBottom:28,marginTop:8}}>
-     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-      <div style={{width:4,height:20,background:"#94a3b8",borderRadius:2}}></div>
-      <h2 style={{margin:0,fontSize:16,color:"#64748B"}}>💤 Barbecho</h2>
-      <span style={{background:"#F1F5F9",color:"#64748B",borderRadius:20,padding:"2px 10px",fontSize:11,fontFamily:"Calibri,sans-serif",fontWeight:700}}>{dormant.length}</span>
-      <span style={{fontSize:11,color:"#94a3b8",fontFamily:"Calibri,sans-serif"}}>fuera del pipeline activo · no cuentan ni suman valor</span>
-     </div>
-     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(340px,1fr))",gap:12}}>
-      {dormant.map(item=>{const rs=dateStatus(item.reactivateDate);const due=rs&&(rs.key==="overdue"||rs.key==="soon");return(
-       <div key={item.id} style={{background:"#FAFAF8",borderRadius:10,border:"1px dashed "+(due?"#f59e0b":"#CBD5E1"),padding:"12px 14px",opacity:.95}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-         <div style={{fontSize:15,fontWeight:"bold",color:"#64748B"}}>{item.account} <span style={{background:item.type==="LA"?"#cbd5e1":GOLD_LIGHT,color:"#475569",borderRadius:4,padding:"1px 6px",fontSize:9,fontFamily:"Calibri,sans-serif",fontWeight:700,verticalAlign:"middle"}}>{item.type}</span></div>
-         <button onClick={()=>setEditing(item)} style={{background:"none",border:"none",color:GRAY,cursor:"pointer",fontSize:13}}>✎</button>
-        </div>
-        {item.dormantReason&&<div style={{fontSize:11,color:"#64748B",fontFamily:"Calibri,sans-serif",marginTop:6}}><span style={{color:"#94a3b8"}}>Motivo:</span> {item.dormantReason}</div>}
-        <div style={{marginTop:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-         {item.reactivateDate?<span style={{background:rs.bg,color:rs.color,borderRadius:4,padding:"2px 8px",fontSize:10,fontFamily:"Calibri,sans-serif",fontWeight:700}}>{rs.key==="overdue"?"Reactivar ya":"Reactivar: "+rs.label}</span>:<span style={{fontSize:10,color:"#94a3b8",fontFamily:"Calibri,sans-serif"}}>Sin fecha de reactivación</span>}
-         <button onClick={()=>reactivate(item)} style={{background:NAVY,color:WHITE,border:"none",borderRadius:6,padding:"5px 12px",fontSize:10.5,fontFamily:"Calibri,sans-serif",cursor:"pointer",fontWeight:700}}>↑ Reactivar</button>
-        </div>
-       </div>);})}
-     </div>
-    </div>
-   )}
-
-   <div style={{marginTop:30,padding:"16px 0",borderTop:"1px solid #E2E8F0",display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
-    <span style={{fontSize:10,color:GRAY,fontFamily:"Calibri,sans-serif"}}>TwinPikes Partners · Operación Siembra · Confidential</span>
-    <span style={{fontSize:10,color:GRAY,fontFamily:"Calibri,sans-serif"}}>Principio: siempre ≥ 10 oportunidades vivas. Valor esperado = fee × 12 × prob. de fase.</span>
-   </div>
-  </div>
-  {(editing||adding)&&<EditModal item={editing} onSave={saveEdit} onClose={()=>{setEditing(null);setAdding(false);}} onRemove={remove}/>}
-  {dormantTarget&&<BarbechoModal item={dormantTarget} onConfirm={sendToBarbecho} onClose={()=>setDormantTarget(null)}/>}
- </div>);
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const fmt = n => "€" + Math.round(n/1000) + "k";
+const fmtDate = ds => { if(!ds) return ""; const [,m,d] = ds.split("-"); return d+"/"+m; };
+function dateStatus(ds) {
+  if (!ds) return null;
+  const t = new Date(); t.setHours(0,0,0,0);
+  const diff = Math.round((new Date(ds+"T00:00:00") - t) / 86400000);
+  if (diff < 0)  return { key:"overdue", label:"Vencida ("+fmtDate(ds)+")", color:"var(--neg)", bg:"var(--neg-bg)" };
+  if (diff === 0) return { key:"soon",   label:"Hoy",                        color:"var(--warn)", bg:"var(--warn-bg)" };
+  if (diff <= 7) return { key:"soon",   label:diff+"d ("+fmtDate(ds)+")",   color:"var(--warn)", bg:"var(--warn-bg)" };
+  return { key:"ok", label: fmtDate(ds), color:"var(--pos)", bg:"var(--pos-bg)" };
+}
+function prog(item) {
+  const l = CHECKLISTS[item.stage]||[];
+  if (!l.length) return { done:0, total:0, pct:100 };
+  const done = l.filter((_,i) => item.checklist?.[item.stage+"_"+i]).length;
+  return { done, total:l.length, pct: Math.round(done/l.length*100) };
 }
 
-function EditModal({item,onSave,onClose,onRemove}){
- const [d,setD]=useState(item||{account:"",type:"LA",stage:"Harvesting",champion:"",dm:"",dmEngaged:false,lastContact:"",nextAction:"",commitDate:"",axes:[],notes:""});
- const set=(k,v)=>setD({...d,[k]:v});
- const toggleAxis=a=>set("axes",(d.axes||[]).includes(a)?d.axes.filter(x=>x!==a):[...(d.axes||[]),a]);
- const inp={width:"100%",border:"1px solid #E2E8F0",borderRadius:6,padding:"7px 10px",fontSize:12,fontFamily:"Calibri,sans-serif",boxSizing:"border-box",outline:"none"};
- const lbl={fontSize:10,color:GRAY,fontFamily:"Calibri,sans-serif",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.05em"};
- return(
- <div style={{position:"fixed",inset:0,background:"rgba(0,32,96,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100,padding:20}}>
-  <div style={{background:WHITE,borderRadius:14,padding:26,width:520,maxHeight:"88vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,32,96,0.3)"}}>
-   <div style={{fontSize:17,fontWeight:"bold",color:NAVY,marginBottom:18,fontFamily:"Georgia,serif"}}>{item?"Editar oportunidad":"Nueva oportunidad"}</div>
-   <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:10,marginBottom:12}}>
-    <div><div style={lbl}>Empresa *</div><input value={d.account} onChange={e=>set("account",e.target.value)} style={inp}/></div>
-    <div><div style={lbl}>Tipo</div><select value={d.type} onChange={e=>set("type",e.target.value)} style={inp}><option value="LA">LA</option><option value="SME">SME</option></select></div>
-    <div><div style={lbl}>Fase</div><select value={d.stage} onChange={e=>set("stage",e.target.value)} style={inp}>{STAGE_ORDER.map(s=><option key={s} value={s}>{s}</option>)}</select></div>
-   </div>
-   <div style={{marginBottom:12}}>
-    <div style={lbl}>Ejes de cualificación</div>
-    <div style={{display:"flex",gap:6}}>
-     {AXES.map(a=>{const on=(d.axes||[]).includes(a);return<button key={a} onClick={()=>toggleAxis(a)} style={{flex:1,padding:"6px 4px",borderRadius:6,border:"1.5px solid "+(on?GOLD:"#E2E8F0"),background:on?"#FBF6EA":WHITE,color:on?NAVY:"#94a3b8",fontSize:11,fontFamily:"Calibri,sans-serif",fontWeight:on?700:400,cursor:"pointer"}}>{a}</button>;})}
+// ── Login ─────────────────────────────────────────────────────────────────────
+function Login({ onLogin }) {
+  const [pw, setPw] = useState("");
+  const [err, setErr] = useState(false);
+  const [shake, setShake] = useState(false);
+  function attempt() {
+    if (pw === APP_PASSWORD) { onLogin(); return; }
+    setErr(true); setShake(true);
+    setTimeout(() => { setErr(false); setShake(false); setPw(""); }, 1500);
+  }
+  return (
+    <div style={{ minHeight:"100vh", background:"var(--navy)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+      <div style={{ position:"fixed", inset:0, opacity:0.04, backgroundImage:'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'80\' height=\'80\'%3E%3Ccircle cx=\'40\' cy=\'40\' r=\'35\' fill=\'none\' stroke=\'%23C2A34E\' stroke-width=\'1\'/%3E%3Ccircle cx=\'40\' cy=\'40\' r=\'22\' fill=\'none\' stroke=\'%23C2A34E\' stroke-width=\'1\'/%3E%3C/svg%3E")', backgroundSize:"100px 100px" }} />
+      <div className="fade-up" style={{ background:"var(--white)", width:380, boxShadow:"var(--shadow-lg)", position:"relative" }}>
+        {/* Gold top bar */}
+        <div style={{ height:3, background:"var(--gold)", width:"100%" }} />
+        <div style={{ padding:"36px 36px 32px" }}>
+          <div style={{ display:"flex", justifyContent:"center", marginBottom:28 }}>
+            <img src={LOGO_SRC} alt="TwinPikes Partners" style={{ height:36, objectFit:"contain" }} />
+          </div>
+          <div style={{ borderTop:"1px solid var(--soft)", marginBottom:24 }} />
+          <div style={{ fontSize:16, fontWeight:700, color:"var(--navy)", letterSpacing:"0.05em", textTransform:"uppercase", marginBottom:4 }}>Operación Siembra</div>
+          <div style={{ fontSize:10, color:"var(--ghost)", letterSpacing:"0.14em", textTransform:"uppercase", marginBottom:24 }}>Acceso restringido</div>
+          <div style={{ position:"relative", marginBottom:err?8:16, animation: shake ? "shake 0.4s ease" : "none" }}>
+            <input
+              type="password" value={pw}
+              onChange={e => { setPw(e.target.value); setErr(false); }}
+              onKeyDown={e => e.key==="Enter" && attempt()}
+              placeholder="Contraseña"
+              autoFocus
+              style={{ width:"100%", border:`1.5px solid ${err ? "var(--neg)" : "var(--line)"}`, padding:"11px 14px", fontSize:13, color:"var(--ink)", background: err ? "var(--neg-bg)" : "var(--bg)", transition:"border 0.15s, background 0.15s" }}
+            />
+          </div>
+          {err && <div style={{ color:"var(--neg)", fontSize:11, letterSpacing:"0.04em", marginBottom:12 }}>Contraseña incorrecta. Inténtalo de nuevo.</div>}
+          <button className="btn-primary" onClick={attempt} style={{ width:"100%", background:"var(--navy)", color:"var(--white)", padding:"12px 0", fontSize:11, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" }}>
+            Entrar
+          </button>
+          <div style={{ marginTop:20, fontSize:9, color:"var(--ghost)", letterSpacing:"0.1em", textAlign:"center", textTransform:"uppercase" }}>
+            TwinPikes Partners · Confidencial
+          </div>
+        </div>
+      </div>
+      <style>{`@keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }`}</style>
     </div>
-   </div>
-   <div style={{marginBottom:12}}><div style={lbl}>Champion</div><input value={d.champion} onChange={e=>set("champion",e.target.value)} style={inp} placeholder="Nombre (rol)"/></div>
-   <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:10,marginBottom:12,alignItems:"end"}}>
-    <div><div style={lbl}>Decision-maker</div><input value={d.dm} onChange={e=>set("dm",e.target.value)} style={inp} placeholder="Nombre (rol)"/></div>
-    <button onClick={()=>set("dmEngaged",!d.dmEngaged)} style={{padding:"7px 12px",borderRadius:6,border:"1.5px solid "+(d.dmEngaged?"#16a34a":"#E2E8F0"),background:d.dmEngaged?"#F0FDF4":WHITE,color:d.dmEngaged?"#16a34a":"#94a3b8",fontSize:11,fontFamily:"Calibri,sans-serif",fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>{d.dmEngaged?"● Activado":"○ No activado"}</button>
-   </div>
-   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-    <div><div style={lbl}>Último contacto</div><input value={d.lastContact} onChange={e=>set("lastContact",e.target.value)} style={inp} placeholder="Jun-26 · comida"/></div>
-    <div><div style={lbl}>Fecha límite del compromiso</div><input type="date" value={d.commitDate||""} onChange={e=>set("commitDate",e.target.value)} style={inp}/></div>
-   </div>
-   <div style={{marginBottom:12}}>
-    <div style={lbl}>Mi próximo compromiso</div>
-    <input value={d.nextAction} onChange={e=>set("nextAction",e.target.value)} style={inp} placeholder="Qué me comprometo a hacer (p.ej. enviar propuesta a Pedro)"/>
-   </div>
-   <div style={{marginBottom:18}}><div style={lbl}>Notas</div><textarea value={d.notes} onChange={e=>set("notes",e.target.value)} rows={2} style={{...inp,resize:"vertical"}}/></div>
-   <div style={{display:"flex",gap:8,justifyContent:"space-between"}}>
-    <div style={{display:"flex",gap:8}}>
-     <button onClick={()=>onSave(d)} disabled={!d.account} style={{background:d.account?NAVY:"#CBD5E1",color:WHITE,border:"none",borderRadius:8,padding:"9px 20px",fontSize:13,fontFamily:"Calibri,sans-serif",fontWeight:700,cursor:d.account?"pointer":"default"}}>Guardar</button>
-     <button onClick={onClose} style={{background:"#f1f5f9",color:"#64748B",border:"none",borderRadius:8,padding:"9px 16px",fontSize:13,fontFamily:"Calibri,sans-serif",cursor:"pointer"}}>Cancelar</button>
-    </div>
-    {item&&<button onClick={()=>onRemove(item.id)} style={{background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA",borderRadius:8,padding:"9px 14px",fontSize:12,fontFamily:"Calibri,sans-serif",cursor:"pointer"}}>Eliminar</button>}
-   </div>
-  </div>
- </div>);
+  );
 }
 
-function BarbechoModal({item,onConfirm,onClose}){
- const [reason,setReason]=useState("");
- const [date,setDate]=useState("");
- const inp={width:"100%",border:"1px solid #E2E8F0",borderRadius:6,padding:"7px 10px",fontSize:12,fontFamily:"Calibri,sans-serif",boxSizing:"border-box",outline:"none"};
- const lbl={fontSize:10,color:GRAY,fontFamily:"Calibri,sans-serif",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.05em"};
- return(
- <div style={{position:"fixed",inset:0,background:"rgba(0,32,96,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100,padding:20}}>
-  <div style={{background:WHITE,borderRadius:14,padding:26,width:420,boxShadow:"0 20px 60px rgba(0,32,96,0.3)"}}>
-   <div style={{fontSize:17,fontWeight:"bold",color:NAVY,marginBottom:6,fontFamily:"Georgia,serif"}}>💤 Pasar a barbecho</div>
-   <div style={{fontSize:12.5,color:"#64748B",fontFamily:"Calibri,sans-serif",marginBottom:18}}><strong>{item.account}</strong> sale del pipeline activo, pero no se pierde. Le ponemos una fecha para reactivarla.</div>
-   <div style={{marginBottom:12}}><div style={lbl}>Motivo</div><input value={reason} onChange={e=>setReason(e.target.value)} style={inp} placeholder="p.ej. presupuesto cerrado 2026 / acaban de internalizar"/></div>
-   <div style={{marginBottom:18}}><div style={lbl}>Fecha de reactivación</div><input type="date" value={date} onChange={e=>setDate(e.target.value)} style={inp}/></div>
-   <div style={{display:"flex",gap:8}}>
-    <button onClick={()=>onConfirm(item,reason,date)} style={{flex:1,background:NAVY,color:WHITE,border:"none",borderRadius:8,padding:"10px 0",fontSize:13,fontFamily:"Calibri,sans-serif",fontWeight:700,cursor:"pointer"}}>Confirmar</button>
-    <button onClick={onClose} style={{background:"#f1f5f9",color:"#64748B",border:"none",borderRadius:8,padding:"10px 16px",fontSize:13,fontFamily:"Calibri,sans-serif",cursor:"pointer"}}>Cancelar</button>
-   </div>
-  </div>
- </div>);
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function Toast({ visible }) {
+  return (
+    <div style={{ position:"fixed", bottom:24, right:24, zIndex:500, transition:"opacity 0.3s, transform 0.3s", opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(8px)", pointerEvents:"none" }}>
+      <div style={{ background:"var(--navy)", color:"var(--white)", padding:"10px 18px", fontSize:11, fontWeight:700, letterSpacing:"0.1em", display:"flex", alignItems:"center", gap:8, boxShadow:"var(--shadow-md)" }}>
+        <span style={{ color:"var(--gold)" }}>✓</span> Guardado en Supabase
+      </div>
+    </div>
+  );
+}
+
+// ── KPI Card ──────────────────────────────────────────────────────────────────
+function KpiCard({ label, value, sub, alert, gold }) {
+  return (
+    <div style={{ background: alert ? "rgba(178,58,43,0.12)" : "rgba(255,255,255,0.07)", border:`1px solid ${alert ? "rgba(178,58,43,0.4)" : "rgba(255,255,255,0.15)"}`, padding:"12px 20px", minWidth:96, textAlign:"center" }}>
+      <div style={{ fontSize:24, fontWeight:700, color: alert ? "#F4A59A" : gold ? "var(--gold-tint)" : "var(--white)", lineHeight:1 }}>{value}</div>
+      <div style={{ fontSize:8.5, color:"rgba(255,255,255,0.5)", letterSpacing:"0.14em", textTransform:"uppercase", marginTop:4 }}>{label}</div>
+      {sub && <div style={{ fontSize:8, color: alert ? "#F4A59A" : "rgba(255,255,255,0.35)", marginTop:2 }}>{sub}</div>}
+    </div>
+  );
+}
+
+// ── Stage pill ────────────────────────────────────────────────────────────────
+function StagePill({ stage }) {
+  const st = STAGES[stage];
+  return <span style={{ background: st.bg, color: st.color, padding:"2px 8px", fontSize:9, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", border:`1px solid ${st.border}40` }}>{stage}</span>;
+}
+
+// ── Opportunity Card ──────────────────────────────────────────────────────────
+function OpCard({ item, expanded, onExpand, onEdit, onMove, onCheck, onBarbecho }) {
+  const st = STAGES[item.stage];
+  const p = prog(item);
+  const isOpen = expanded === item.id;
+  const ds = dateStatus(item.commitDate);
+  const stageIdx = STAGE_ORDER.indexOf(item.stage);
+  const ready = p.total > 0 && p.done === p.total;
+  const ev = FEE[item.type] * 12 * st.prob;
+
+  return (
+    <div className="card fade-up" style={{ background:"var(--white)", borderTop:`3px solid ${st.border}`, boxShadow:"var(--shadow-sm)", overflow:"hidden" }}>
+      {/* ── Card header ── */}
+      <div style={{ background: st.bg, padding:"8px 14px 8px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          <span style={{ background: item.type==="LA" ? "var(--navy)" : "var(--gold)", color:"var(--white)", padding:"2px 7px", fontSize:8.5, fontWeight:700, letterSpacing:"0.1em" }}>{item.type}</span>
+          {item.dmEngaged && <span style={{ color:"var(--pos)", fontSize:8.5, fontWeight:700, letterSpacing:"0.08em" }}>● DM</span>}
+        </div>
+        <span style={{ fontSize:12, color: st.color, fontWeight:700 }}>{fmt(ev)} <span style={{ fontSize:9, fontWeight:400, color:"var(--ghost)" }}>esp.</span></span>
+      </div>
+
+      {/* ── Card body ── */}
+      <div style={{ padding:"12px 14px" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
+          <div style={{ fontSize:15, fontWeight:700, color:"var(--navy)", letterSpacing:"0.01em", lineHeight:1.2 }}>{item.account}</div>
+          <button data-tip="Editar" onClick={() => onEdit(item)} className="btn-ghost" style={{ background:"none", color:"var(--faint)", fontSize:13, padding:"2px 4px", lineHeight:1 }}>✎</button>
+        </div>
+
+        {/* Axes tags */}
+        {item.axes?.length > 0 && (
+          <div style={{ display:"flex", gap:3, flexWrap:"wrap", marginBottom:9 }}>
+            {item.axes.map(a => <span key={a} style={{ background:"var(--bg)", color:"var(--muted)", padding:"2px 7px", fontSize:8.5, letterSpacing:"0.08em", textTransform:"uppercase", border:"1px solid var(--soft)" }}>{a}</span>)}
+          </div>
+        )}
+
+        {/* People */}
+        <div style={{ fontSize:11, lineHeight:1.8, marginBottom:9, borderLeft:"2px solid var(--soft)", paddingLeft:8 }}>
+          <div><span style={{ fontSize:8.5, fontWeight:700, color:"var(--gold)", letterSpacing:"0.1em", textTransform:"uppercase" }}>Champion </span><span style={{ color:"var(--muted)" }}>{item.champion||"—"}</span></div>
+          <div>
+            <span style={{ fontSize:8.5, fontWeight:700, color:"var(--navy)", letterSpacing:"0.1em", textTransform:"uppercase" }}>DM </span>
+            <span style={{ color:"var(--muted)" }}>{item.dm||"—"}</span>
+            {" "}
+            {item.dmEngaged
+              ? <span style={{ color:"var(--pos)", fontSize:8.5, fontWeight:700 }}>● activado</span>
+              : <span style={{ color:"var(--warn)", fontSize:8.5 }}>○ no activado</span>}
+          </div>
+        </div>
+
+        {/* Next action */}
+        <div style={{ background:"var(--bg-warm)", padding:"8px 10px", marginBottom:9, borderLeft:"2px solid var(--gold)" }}>
+          <div style={{ fontSize:11, color:"var(--ink)", lineHeight:1.5 }}>{item.nextAction||"—"}</div>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:5, flexWrap:"wrap", gap:4 }}>
+            {ds ? <span style={{ background: ds.bg, color: ds.color, padding:"2px 7px", fontSize:9, fontWeight:700 }}>{ds.label}</span> : <span/>}
+            {item.lastContact && <span style={{ color:"var(--ghost)", fontSize:9 }}>Últ: {item.lastContact}</span>}
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        {p.total > 0 && (
+          <div onClick={() => onExpand(isOpen ? null : item.id)} style={{ cursor:"pointer", marginBottom: isOpen ? 10 : 0 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+              <span style={{ fontSize:9, color:"var(--ghost)", letterSpacing:"0.08em", textTransform:"uppercase" }}>Checklist de avance</span>
+              <span style={{ fontSize:9, fontWeight:700, color: p.pct===100 ? "var(--pos)" : "var(--muted)" }}>{p.done}/{p.total} {isOpen?"▲":"▼"}</span>
+            </div>
+            <div style={{ height:4, background:"var(--soft)", overflow:"hidden" }}>
+              <div style={{ width: p.pct+"%", height:"100%", background: p.pct===100 ? "var(--pos)" : st.border, transition:"width 0.4s ease" }} />
+            </div>
+          </div>
+        )}
+
+        {/* Checklist */}
+        {isOpen && p.total > 0 && (
+          <div className="fade-up" style={{ marginTop:10, marginBottom:10, padding:"10px", background:"var(--bg)", border:"1px solid var(--soft)" }}>
+            <div style={{ fontSize:8.5, color:"var(--ghost)", letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:8 }}>
+              Requisitos para avanzar a {STAGE_ORDER[stageIdx+1]||"cierre"}:
+            </div>
+            {CHECKLISTS[item.stage].map((c, idx) => {
+              const checked = !!item.checklist?.[item.stage+"_"+idx];
+              return (
+                <div key={idx} onClick={() => onCheck(item, idx)} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"5px 0", cursor:"pointer", borderBottom: idx < CHECKLISTS[item.stage].length-1 ? "1px solid var(--soft)" : "none" }}>
+                  <div className={checked ? "check-pop" : ""} style={{ width:14, height:14, border:`1.5px solid ${checked ? st.border : "var(--line)"}`, background: checked ? st.border : "var(--white)", flexShrink:0, marginTop:2, display:"flex", alignItems:"center", justifyContent:"center", transition:"background 0.15s, border 0.15s" }}>
+                    {checked && <span style={{ color:"var(--white)", fontSize:9, lineHeight:1 }}>✓</span>}
+                  </div>
+                  <span style={{ fontSize:11, color: checked ? "var(--ghost)" : "var(--muted)", textDecoration: checked ? "line-through" : "none", lineHeight:1.5 }}>{c}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Navigation */}
+        <div style={{ display:"flex", gap:6, marginTop:10 }}>
+          {stageIdx > 0 && (
+            <button data-tip="Retroceder fase" className="btn-ghost" onClick={() => onMove(item,-1)} style={{ background:"var(--soft)", color:"var(--muted)", padding:"7px 12px", fontSize:10, letterSpacing:"0.04em" }}>← Atrás</button>
+          )}
+          {stageIdx < 3 && (
+            <button className="btn-primary" onClick={() => ready ? onMove(item,1) : onExpand(item.id)} data-tip={ready ? "" : "Completa el checklist para avanzar"} style={{ flex:1, background: ready ? "var(--navy)" : "var(--soft)", color: ready ? "var(--white)" : "var(--ghost)", padding:"7px 10px", fontSize:10, fontWeight:700, letterSpacing:"0.05em", transition:"background 0.15s" }}>
+              {ready ? "Avanzar a "+STAGE_ORDER[stageIdx+1]+" →" : "🔒 Faltan "+(p.total-p.done)}
+            </button>
+          )}
+        </div>
+        {item.stage !== "Execution" && (
+          <div style={{ textAlign:"center", marginTop:8 }}>
+            <button className="btn-ghost" onClick={() => onBarbecho(item)} style={{ background:"none", color:"var(--ghost)", fontSize:9.5, textDecoration:"underline", letterSpacing:"0.04em", padding:"2px 4px" }}>💤 Pasar a barbecho</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
+function App() {
+  const [authed, setAuthed] = useState(false);
+  const [items, setItems] = useState(INITIAL);
+  const [expanded, setExpanded] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [adding, setAdding] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [dormantTarget, setDormantTarget] = useState(null);
+  const [filterStage, setFilterStage] = useState(null);
+
+  useEffect(() => {
+    if (!authed) return;
+    (async () => {
+      try { const v = await sbGet(); if (v) setItems(JSON.parse(v)); } catch(e) { console.error(e); }
+      setLoading(false);
+    })();
+  }, [authed]);
+
+  async function persist(next) {
+    setItems(next);
+    try { await sbSet(JSON.stringify(next)); setSaved(true); setTimeout(() => setSaved(false), 2000); } catch(e) { console.error(e); }
+  }
+
+  if (!authed) return <Login onLogin={() => setAuthed(true)} />;
+  if (loading) return (
+    <div style={{ minHeight:"100vh", background:"var(--bg)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
+      <img src={LOGO_SRC} alt="TwinPikes" style={{ height:32, opacity:0.7 }} />
+      <div style={{ fontSize:10, color:"var(--ghost)", letterSpacing:"0.14em", textTransform:"uppercase" }}>Cargando pipeline…</div>
+    </div>
+  );
+
+  const active = items.filter(i => !i.dormant);
+  const dormant = items.filter(i => i.dormant);
+  const liveCount = active.filter(i => i.stage !== "Execution").length;
+  const ev = i => FEE[i.type] * 12 * STAGES[i.stage].prob;
+  const totalW = active.reduce((s,i) => s+ev(i), 0);
+  const totalF = active.reduce((s,i) => s+FEE[i.type]*12, 0);
+  const overdueCount = active.filter(i => i.stage!=="Execution" && dateStatus(i.commitDate)?.key==="overdue").length;
+  const reactivateCount = dormant.filter(i => { if(!i.reactivateDate) return false; const t=new Date(); t.setHours(0,0,0,0); return new Date(i.reactivateDate+"T00:00:00")<=t; }).length;
+
+  function toggleCheck(item, idx) { const cl={...(item.checklist||{})}; const k=item.stage+"_"+idx; cl[k]=!cl[k]; persist(items.map(i=>i.id===item.id?{...i,checklist:cl}:i)); }
+  function move(item, dir) { const idx=STAGE_ORDER.indexOf(item.stage); persist(items.map(i=>i.id===item.id?{...i,stage:STAGE_ORDER[Math.max(0,Math.min(3,idx+dir))]}:i)); }
+  function saveEdit(d) { if(d.id) persist(items.map(i=>i.id===d.id?d:i)); else persist([...items,{...d,id:"p"+Date.now(),checklist:{}}]); setEditing(null); setAdding(false); }
+  function remove(id) { persist(items.filter(i=>i.id!==id)); setEditing(null); }
+  function sendToBarbecho(item, reason, date) { persist(items.map(i=>i.id===item.id?{...i,dormant:true,dormantReason:reason,reactivateDate:date}:i)); setDormantTarget(null); }
+  function reactivate(item) { persist(items.map(i=>i.id===item.id?{...i,dormant:false,dormantReason:"",reactivateDate:""}:i)); }
+  function exportData() { const b=new Blob([JSON.stringify(items,null,2)],{type:"application/json"}); const u=URL.createObjectURL(b); const a=document.createElement("a"); const d=new Date(),pad=n=>String(n).padStart(2,"0"); a.href=u; a.download="OperacionSiembra_"+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+".json"; a.click(); URL.revokeObjectURL(u); }
+  function importData(e) { const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(Array.isArray(d)){persist(d);alert("Importado: "+d.length+" oportunidades.");}else alert("Formato inesperado.");}catch{alert("Error al leer el archivo.");}}; r.readAsText(f); e.target.value=""; }
+
+  const displayStages = filterStage ? [filterStage] : STAGE_ORDER;
+
+  return (
+    <div style={{ fontFamily:"var(--font)", background:"var(--bg)", minHeight:"100vh" }}>
+      <Toast visible={saved} />
+
+      {/* ─── HEADER ─────────────────────────────────────────────────────── */}
+      <header style={{ background:"var(--navy)", borderBottom:"3px solid var(--gold)", position:"sticky", top:0, zIndex:200, boxShadow:"0 2px 12px rgba(0,0,0,0.3)" }}>
+        <div style={{ maxWidth:1240, margin:"0 auto", padding:"0 28px" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:12, padding:"16px 0" }}>
+            {/* Logo + title */}
+            <div style={{ display:"flex", alignItems:"center", gap:20 }}>
+              <div>
+                <div style={{ color:"var(--white)", fontSize:16, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", lineHeight:1.1 }}>TwinPikes</div>
+                <div style={{ color:"var(--gold)", fontSize:8, letterSpacing:"0.2em", textTransform:"uppercase" }}>Partners</div>
+              </div>
+              <div style={{ width:1, height:32, background:"rgba(255,255,255,0.15)" }} />
+              <div>
+                <div style={{ color:"var(--gold)", fontSize:8.5, letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:2 }}>Sales Ops Outsourcing</div>
+                <div style={{ color:"var(--white)", fontSize:18, fontWeight:700, letterSpacing:"0.03em" }}>Operación Siembra</div>
+              </div>
+            </div>
+            {/* KPIs */}
+            <div style={{ display:"flex", gap:6, alignItems:"center", flexWrap:"wrap" }}>
+              <KpiCard label="Pipeline total" value={fmt(totalF)} />
+              <KpiCard label="Ponderado" value={fmt(totalW)} gold />
+              <KpiCard label={liveCount>=10?"Vivas ✓":"Vivas · mín 10"} value={liveCount} alert={liveCount<10} />
+              {overdueCount > 0 && <KpiCard label="Acc. vencidas" value={overdueCount} alert />}
+              {reactivateCount > 0 && <KpiCard label="Por reactivar" value={reactivateCount} alert />}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* ─── STAGE SUMMARY BAR ───────────────────────────────────────────── */}
+      <div style={{ background:"var(--white)", borderBottom:"1px solid var(--line)", boxShadow:"var(--shadow-sm)" }}>
+        <div style={{ maxWidth:1240, margin:"0 auto", padding:"0 28px" }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)" }}>
+            {STAGE_ORDER.map((s,si) => {
+              const st = STAGES[s];
+              const inStage = active.filter(i => i.stage===s);
+              const val = inStage.reduce((a,i)=>a+ev(i),0);
+              const active_ = filterStage===s;
+              return (
+                <button key={s} onClick={() => setFilterStage(filterStage===s?null:s)} style={{ padding:"14px 16px", background: active_ ? st.bg : "transparent", borderBottom:`3px solid ${active_ ? st.border : "transparent"}`, borderRight: si<3 ? "1px solid var(--soft)" : "none", borderTop:"none", borderLeft:"none", textAlign:"left", cursor:"pointer", transition:"background 0.15s" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:4 }}>
+                    <span style={{ fontSize:9, fontWeight:700, color: st.color, letterSpacing:"0.12em", textTransform:"uppercase" }}>{s}</span>
+                    <span style={{ fontSize:9, color:"var(--ghost)" }}>{Math.round(st.prob*100)}%</span>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"baseline", gap:8 }}>
+                    <span style={{ fontSize:22, fontWeight:700, color:"var(--navy)" }}>{inStage.length}</span>
+                    <span style={{ fontSize:11, color:"var(--muted)" }}>{fmt(val)}</span>
+                  </div>
+                  <div style={{ fontSize:8.5, color:"var(--ghost)", marginTop:2 }}>
+                    {inStage.filter(i=>i.type==="LA").length} LA · {inStage.filter(i=>i.type==="SME").length} SME
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ─── TOOLBAR ────────────────────────────────────────────────────── */}
+      <div style={{ maxWidth:1240, margin:"0 auto", padding:"16px 28px", display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:10 }}>
+        <div style={{ fontSize:10, color:"var(--ghost)", letterSpacing:"0.04em" }}>
+          {filterStage ? <span>Filtrando: <strong style={{color:"var(--navy)"}}>{filterStage}</strong> · <button onClick={()=>setFilterStage(null)} style={{background:"none",border:"none",color:"var(--gold)",fontSize:10,fontWeight:700,cursor:"pointer",padding:0}}>Ver todo</button></span>
+          : <span>Total pipeline: <strong style={{color:"var(--navy)"}}>{fmt(totalF)}</strong> · ponderado: <strong style={{color:"var(--navy)"}}>{fmt(totalW)}</strong></span>}
+        </div>
+        <div style={{ display:"flex", gap:6 }}>
+          <button data-tip="Exportar JSON" onClick={exportData} className="btn-ghost" style={{ background:"var(--white)", color:"var(--navy)", border:"1px solid var(--line)", padding:"7px 14px", fontSize:10.5, fontWeight:700, letterSpacing:"0.06em" }}>↓ Exportar</button>
+          <label data-tip="Importar JSON" className="btn-ghost" style={{ background:"var(--white)", color:"var(--navy)", border:"1px solid var(--line)", padding:"7px 14px", fontSize:10.5, fontWeight:700, letterSpacing:"0.06em", cursor:"pointer" }}>
+            ↑ Importar<input type="file" accept=".json" onChange={importData} style={{display:"none"}}/>
+          </label>
+          <button className="btn-primary" onClick={()=>setAdding(true)} style={{ background:"var(--gold)", color:"var(--navy)", padding:"7px 18px", fontSize:10.5, fontWeight:700, letterSpacing:"0.08em" }}>+ Nueva oportunidad</button>
+        </div>
+      </div>
+
+      {/* ─── PIPELINE BOARD ─────────────────────────────────────────────── */}
+      <main style={{ maxWidth:1240, margin:"0 auto", padding:"0 28px 48px" }}>
+        {displayStages.map(stage => {
+          const list = active.filter(i => i.stage===stage);
+          if (!list.length) return null;
+          const st = STAGES[stage];
+          return (
+            <section key={stage} style={{ marginBottom:36 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14, paddingBottom:10, borderBottom:"1px solid var(--soft)" }}>
+                <div style={{ width:3, height:20, background: st.border }} />
+                <span style={{ fontSize:12, fontWeight:700, color:"var(--navy)", letterSpacing:"0.08em", textTransform:"uppercase" }}>{stage}</span>
+                <span style={{ background: st.bg, color: st.color, padding:"3px 10px", fontSize:9, fontWeight:700, letterSpacing:"0.08em", border:`1px solid ${st.border}40` }}>{list.length} · {Math.round(st.prob*100)}% prob.</span>
+                <span style={{ fontSize:10, color:"var(--ghost)", marginLeft:4 }}>{fmt(list.reduce((a,i)=>a+ev(i),0))} esperado</span>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(330px,1fr))", gap:12 }}>
+                {list.map(item => (
+                  <OpCard key={item.id} item={item} expanded={expanded}
+                    onExpand={setExpanded} onEdit={setEditing} onMove={move}
+                    onCheck={toggleCheck} onBarbecho={setDormantTarget} />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+
+        {/* ─── BARBECHO ───────────────────────────────────────────────── */}
+        {!filterStage && dormant.length > 0 && (
+          <section style={{ marginBottom:36 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14, paddingBottom:10, borderBottom:"1px solid var(--soft)" }}>
+              <div style={{ width:3, height:20, background:"var(--line)" }} />
+              <span style={{ fontSize:12, fontWeight:700, color:"var(--muted)", letterSpacing:"0.08em", textTransform:"uppercase" }}>💤 Barbecho</span>
+              <span style={{ background:"var(--soft)", color:"var(--muted)", padding:"3px 10px", fontSize:9, fontWeight:700 }}>{dormant.length}</span>
+              <span style={{ fontSize:10, color:"var(--ghost)" }}>fuera del pipeline activo · no cuentan ni suman valor</span>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(330px,1fr))", gap:12 }}>
+              {dormant.map(item => {
+                const rs = dateStatus(item.reactivateDate);
+                const due = rs && (rs.key==="overdue"||rs.key==="soon");
+                return (
+                  <div key={item.id} style={{ background:"var(--white)", border:`1px dashed ${due?"var(--warn)":"var(--line)"}`, padding:"14px", boxShadow:"var(--shadow-sm)" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                      <div>
+                        <div style={{ fontSize:14, fontWeight:700, color:"var(--muted)" }}>{item.account}</div>
+                        <span style={{ background:"var(--soft)", color:"var(--ghost)", padding:"1px 6px", fontSize:8.5, fontWeight:700, letterSpacing:"0.08em" }}>{item.type}</span>
+                      </div>
+                      <button className="btn-ghost" onClick={()=>setEditing(item)} style={{ background:"none", color:"var(--faint)", fontSize:12, padding:"2px 4px" }}>✎</button>
+                    </div>
+                    {item.dormantReason && <div style={{ fontSize:11, color:"var(--muted)", marginTop:8 }}><span style={{color:"var(--ghost)"}}>Motivo: </span>{item.dormantReason}</div>}
+                    <div style={{ marginTop:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                      {item.reactivateDate
+                        ? <span style={{ background: rs.bg, color: rs.color, padding:"2px 8px", fontSize:9, fontWeight:700 }}>{rs.key==="overdue"?"Reactivar ya":"Reactivar: "+rs.label}</span>
+                        : <span style={{ fontSize:9, color:"var(--ghost)" }}>Sin fecha</span>}
+                      <button className="btn-primary" onClick={()=>reactivate(item)} style={{ background:"var(--navy)", color:"var(--white)", padding:"5px 14px", fontSize:9.5, fontWeight:700, letterSpacing:"0.06em" }}>↑ Reactivar</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* ─── FOOTER ─────────────────────────────────────────────────── */}
+        <footer style={{ marginTop:24, paddingTop:16, borderTop:"1px solid var(--soft)", display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8 }}>
+          <img src={LOGO_SRC} alt="TwinPikes" style={{ height:18, opacity:0.45 }} />
+          <span style={{ fontSize:9, color:"var(--faint)", letterSpacing:"0.08em" }}>TwinPikes Partners · Operación Siembra · Confidential · Principio: ≥10 oportunidades vivas</span>
+        </footer>
+      </main>
+
+      {/* ─── MODALS ──────────────────────────────────────────────────────── */}
+      {(editing||adding) && <EditModal item={editing} onSave={saveEdit} onClose={()=>{setEditing(null);setAdding(false);}} onRemove={remove} />}
+      {dormantTarget && <BarbechoModal item={dormantTarget} onConfirm={sendToBarbecho} onClose={()=>setDormantTarget(null)} />}
+    </div>
+  );
+}
+
+// ── Edit Modal ────────────────────────────────────────────────────────────────
+function EditModal({ item, onSave, onClose, onRemove }) {
+  const [d, setD] = useState(item || { account:"", type:"LA", stage:"Harvesting", champion:"", dm:"", dmEngaged:false, lastContact:"", nextAction:"", commitDate:"", axes:[], notes:"" });
+  const set = (k,v) => setD(prev => ({...prev,[k]:v}));
+  const toggleAxis = a => set("axes", (d.axes||[]).includes(a) ? d.axes.filter(x=>x!==a) : [...(d.axes||[]),a]);
+  const inp = { width:"100%", border:"1px solid var(--line)", padding:"9px 11px", fontSize:12, color:"var(--ink)", background:"var(--bg)", fontFamily:"var(--font)", outline:"none", transition:"border 0.15s" };
+  const lbl = { fontSize:9, color:"var(--ghost)", marginBottom:5, textTransform:"uppercase", letterSpacing:"0.12em", display:"block", fontWeight:700 };
+  const field = { marginBottom:14 };
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,20,60,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:300, padding:20, backdropFilter:"blur(2px)" }}>
+      <div className="fade-up" style={{ background:"var(--white)", width:540, maxHeight:"92vh", overflowY:"auto", boxShadow:"var(--shadow-lg)" }}>
+        <div style={{ height:3, background:"var(--gold)" }} />
+        <div style={{ padding:"24px 28px 28px" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+            <div>
+              <div style={{ fontSize:15, fontWeight:700, color:"var(--navy)", letterSpacing:"0.05em", textTransform:"uppercase" }}>{item?"Editar oportunidad":"Nueva oportunidad"}</div>
+              {item && <div style={{ fontSize:10, color:"var(--ghost)", marginTop:2 }}>{item.account}</div>}
+            </div>
+            <button onClick={onClose} className="btn-ghost" style={{ background:"none", color:"var(--ghost)", fontSize:18, padding:"2px 6px", lineHeight:1 }}>×</button>
+          </div>
+
+          <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr 1fr", gap:10, ...field }}>
+            <div><label style={lbl}>Empresa *</label><input value={d.account} onChange={e=>set("account",e.target.value)} style={inp} onFocus={e=>e.target.style.borderColor="var(--navy)"} onBlur={e=>e.target.style.borderColor="var(--line)"} /></div>
+            <div><label style={lbl}>Tipo</label><select value={d.type} onChange={e=>set("type",e.target.value)} style={inp}><option value="LA">LA</option><option value="SME">SME</option></select></div>
+            <div><label style={lbl}>Fase</label><select value={d.stage} onChange={e=>set("stage",e.target.value)} style={inp}>{STAGE_ORDER.map(s=><option key={s}>{s}</option>)}</select></div>
+          </div>
+
+          <div style={field}>
+            <label style={lbl}>Ejes de cualificación</label>
+            <div style={{ display:"flex", gap:4 }}>
+              {AXES.map(a => { const on=(d.axes||[]).includes(a); return (
+                <button key={a} onClick={()=>toggleAxis(a)} style={{ flex:1, padding:"8px 4px", border:`1.5px solid ${on?"var(--gold)":"var(--line)"}`, background: on?"var(--warn-bg)":"var(--white)", color: on?"var(--navy)":"var(--ghost)", fontSize:11, fontWeight: on?700:400, letterSpacing:"0.06em", transition:"all 0.15s" }}>{a}</button>
+              ); })}
+            </div>
+          </div>
+
+          <div style={field}><label style={lbl}>Champion</label><input value={d.champion} onChange={e=>set("champion",e.target.value)} style={inp} placeholder="Nombre (rol)" onFocus={e=>e.target.style.borderColor="var(--navy)"} onBlur={e=>e.target.style.borderColor="var(--line)"} /></div>
+
+          <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, ...field, alignItems:"end" }}>
+            <div><label style={lbl}>Decision-maker</label><input value={d.dm} onChange={e=>set("dm",e.target.value)} style={inp} placeholder="Nombre (rol)" onFocus={e=>e.target.style.borderColor="var(--navy)"} onBlur={e=>e.target.style.borderColor="var(--line)"} /></div>
+            <button onClick={()=>set("dmEngaged",!d.dmEngaged)} style={{ padding:"9px 14px", border:`1.5px solid ${d.dmEngaged?"var(--pos)":"var(--line)"}`, background: d.dmEngaged?"var(--pos-bg)":"var(--white)", color: d.dmEngaged?"var(--pos)":"var(--ghost)", fontSize:11, fontWeight:700, whiteSpace:"nowrap", transition:"all 0.15s" }}>{d.dmEngaged?"● Activado":"○ No activado"}</button>
+          </div>
+
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, ...field }}>
+            <div><label style={lbl}>Último contacto</label><input value={d.lastContact} onChange={e=>set("lastContact",e.target.value)} style={inp} placeholder="Jun-26 · comida" onFocus={e=>e.target.style.borderColor="var(--navy)"} onBlur={e=>e.target.style.borderColor="var(--line)"} /></div>
+            <div><label style={lbl}>Fecha límite compromiso</label><input type="date" value={d.commitDate||""} onChange={e=>set("commitDate",e.target.value)} style={inp} /></div>
+          </div>
+
+          <div style={field}><label style={lbl}>Mi próximo compromiso</label><input value={d.nextAction} onChange={e=>set("nextAction",e.target.value)} style={inp} placeholder="Qué me comprometo a hacer" onFocus={e=>e.target.style.borderColor="var(--navy)"} onBlur={e=>e.target.style.borderColor="var(--line)"} /></div>
+
+          <div style={{ marginBottom:24 }}><label style={lbl}>Notas</label><textarea value={d.notes} onChange={e=>set("notes",e.target.value)} rows={2} style={{...inp,resize:"vertical"}} onFocus={e=>e.target.style.borderColor="var(--navy)"} onBlur={e=>e.target.style.borderColor="var(--line)"} /></div>
+
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", paddingTop:16, borderTop:"1px solid var(--soft)" }}>
+            <div style={{ display:"flex", gap:8 }}>
+              <button className="btn-primary" onClick={()=>onSave(d)} disabled={!d.account} style={{ background: d.account?"var(--navy)":"var(--soft)", color: d.account?"var(--white)":"var(--ghost)", padding:"10px 24px", fontSize:11, fontWeight:700, letterSpacing:"0.1em" }}>Guardar</button>
+              <button className="btn-ghost" onClick={onClose} style={{ background:"var(--soft)", color:"var(--muted)", padding:"10px 16px", fontSize:11, letterSpacing:"0.06em" }}>Cancelar</button>
+            </div>
+            {item && <button className="btn-ghost" onClick={()=>onRemove(item.id)} style={{ background:"var(--neg-bg)", color:"var(--neg)", border:"1px solid #F4BDBA", padding:"10px 14px", fontSize:10.5, letterSpacing:"0.06em" }}>Eliminar</button>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Barbecho Modal ────────────────────────────────────────────────────────────
+function BarbechoModal({ item, onConfirm, onClose }) {
+  const [reason, setReason] = useState("");
+  const [date, setDate] = useState("");
+  const inp = { width:"100%", border:"1px solid var(--line)", padding:"9px 11px", fontSize:12, color:"var(--ink)", background:"var(--bg)", fontFamily:"var(--font)", outline:"none" };
+  const lbl = { fontSize:9, color:"var(--ghost)", marginBottom:5, textTransform:"uppercase", letterSpacing:"0.12em", display:"block", fontWeight:700 };
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,20,60,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:300, padding:20, backdropFilter:"blur(2px)" }}>
+      <div className="fade-up" style={{ background:"var(--white)", width:420, boxShadow:"var(--shadow-lg)" }}>
+        <div style={{ height:3, background:"var(--gold)" }} />
+        <div style={{ padding:"24px 28px 28px" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
+            <div>
+              <div style={{ fontSize:15, fontWeight:700, color:"var(--navy)", letterSpacing:"0.05em", textTransform:"uppercase" }}>💤 Pasar a barbecho</div>
+              <div style={{ fontSize:11, color:"var(--muted)", marginTop:4 }}><strong style={{color:"var(--navy)"}}>{item.account}</strong> sale del pipeline activo pero no se pierde.</div>
+            </div>
+            <button onClick={onClose} className="btn-ghost" style={{ background:"none", color:"var(--ghost)", fontSize:18, padding:"2px 6px" }}>×</button>
+          </div>
+          <div style={{ marginBottom:14 }}><label style={lbl}>Motivo</label><input value={reason} onChange={e=>setReason(e.target.value)} style={inp} placeholder="p.ej. presupuesto cerrado 2026"/></div>
+          <div style={{ marginBottom:24 }}><label style={lbl}>Fecha de reactivación</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} style={inp}/></div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button className="btn-primary" onClick={()=>onConfirm(item,reason,date)} style={{ flex:1, background:"var(--navy)", color:"var(--white)", padding:"11px 0", fontSize:11, fontWeight:700, letterSpacing:"0.1em" }}>Confirmar</button>
+            <button className="btn-ghost" onClick={onClose} style={{ background:"var(--soft)", color:"var(--muted)", padding:"11px 18px", fontSize:11 }}>Cancelar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
